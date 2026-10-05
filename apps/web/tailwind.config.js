@@ -22,6 +22,7 @@ export default {
         surface: {
           DEFAULT: withOpacity('--surface'),
           2: withOpacity('--surface-2'),
+          3: withOpacity('--surface-3'),
         },
         border: {
           DEFAULT: withOpacity('--border'),

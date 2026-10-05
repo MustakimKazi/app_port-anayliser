@@ -8,6 +8,7 @@
     --bg: #F4F0E5;
     --surface: #FBF9F3;
     --surface-2: #EBE5D6;
+    --surface-3: #EBE5D6;
     --border: #CFC6AE;
     --border-strong: #8A8068;
     --text: #2A2418;
@@ -51,62 +52,80 @@
 
   .dark {
     color-scheme: dark;
-    --bg: #1C1912;
-    --surface: #26221A;
-    --surface-2: #302B21;
-    --border: #5A5242;
-    --border-strong: #7D7460;
+    --bg: #21080E;
+    --surface: #320B14;
+    --surface-2: #430F1B;
+    --surface-3: #531322;
+    --border: #531322;
+    --border-strong: #94606F;
     --text: #F4F0E5;
-    --text-muted: #B5AD99;
-    --primary: #8CC4B2;
-    --on-primary: #14201B;
-    --accent: #E8956A;
+    --text-muted: #CBB4B4;
+    --primary: #EFC9A3;
+    --on-primary: #21080E;
+    --accent: #F2A0B0;
 
     /* Status colours */
-    --status-up: #5DBB85;
-    --status-down: #F08A7E;
-    --status-slow: #E3A94A;
-    --status-unknown: #A39B88;
-    --status-info: #86B8E0;
+    --status-up: #6FD09A;
+    --status-down: #FF9A8E;
+    --status-slow: #EDB65A;
+    --status-unknown: #B5A3A3;
+    --status-info: #8EC1EA;
 
     /* Route action colours */
-    --action-proxy: #8CC4B2;
-    --action-static: #86B8E0;
-    --action-redirect: #E3A94A;
-    --action-return: #C7A0D8;
-    --action-status: #E8956A;
+    --action-proxy: #EFC9A3;
+    --action-static: #8EC1EA;
+    --action-redirect: #EDB65A;
+    --action-return: #D3A6E3;
+    --action-status: #F2A0B0;
 
     /* Issue priority colours */
-    --priority-high: #F08A7E;
-    --priority-medium: #E3A94A;
-    --priority-low: #86B8E0;
-    --priority-info: #A39B88;
+    --priority-high: #FF9A8E;
+    --priority-medium: #EDB65A;
+    --priority-low: #8EC1EA;
+    --priority-info: #B5A3A3;
 
     /* Chart series colours */
-    --chart-1: #8CC4B2;
-    --chart-2: #E8956A;
-    --chart-3: #86B8E0;
-    --chart-4: #E3A94A;
-    --chart-5: #C7A0D8;
-    --chart-6: #5DBB85;
-    --chart-7: #A39B88;
-    --chart-8: #F08A7E;
+    --chart-1: #EFC9A3;
+    --chart-2: #F2A0B0;
+    --chart-3: #8EC1EA;
+    --chart-4: #EDB65A;
+    --chart-5: #D3A6E3;
+    --chart-6: #6FD09A;
+    --chart-7: #B5A3A3;
+    --chart-8: #FF9A8E;
+
+    --graph-edge: #CBB4B4;
 
     --status-badge-alpha: 18%;
   }
 
   * {
-    scrollbar-color: var(--border-strong) transparent;
+    scrollbar-color: var(--border-strong) var(--surface);
   }
 
   ::selection {
-    background-color: color-mix(in srgb, var(--primary) 25%, transparent);
+    background-color: color-mix(in srgb, var(--primary) 28%, transparent);
     color: var(--text);
   }
 
   body {
     background-color: var(--bg);
     color: var(--text);
+  }
+
+  .dark button.bg-primary:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--primary) 94%, var(--text));
+  }
+
+  .dark button:disabled,
+  .dark [disabled] {
+    opacity: 0.45;
+  }
+
+  .dark .recharts-default-tooltip {
+    background-color: var(--surface-3) !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text) !important;
   }
 }
 

@@ -51,7 +51,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             <div className="flex flex-col">
               <span className="font-bold text-base tracking-tight text-text flex items-center gap-1.5">
                 PortWatch
-                <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/30">
+                <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-primary/10 dark:bg-surface-3 text-primary border border-primary/30 dark:border-border">
                   v1.0
                 </span>
               </span>
@@ -72,7 +72,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all group ${
                   isActive
-                    ? 'bg-primary/10 text-primary font-semibold border border-primary/30 shadow-sm'
+                    ? 'bg-primary/10 text-primary font-semibold border border-primary/30 shadow-sm dark:bg-surface-3 dark:text-primary dark:border-transparent'
                     : 'text-text-muted hover:text-text hover:bg-surface-2'
                 } ${isCollapsed ? 'justify-center' : ''}`
               }

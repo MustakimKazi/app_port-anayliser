@@ -284,7 +284,7 @@ export function BackendsPage() {
                 {topology?.nodes.filter((n) => n.type === 'domain').slice(0, 25).map((node) => (
                   <div
                     key={node.id}
-                    className="p-2.5 rounded-lg border border-primary/30 bg-primary/10 text-xs font-mono text-primary hover:border-primary transition-colors"
+                    className="p-2.5 rounded-lg border border-primary/30 bg-primary/10 text-xs font-mono text-primary hover:border-primary dark:bg-surface-2 dark:border-border-strong dark:text-primary transition-colors"
                   >
                     {node.data.label}
                   </div>
@@ -302,7 +302,7 @@ export function BackendsPage() {
                 {topology?.nodes.filter((n) => n.type === 'port').map((node) => (
                   <div
                     key={node.id}
-                    className="p-3 rounded-lg border border-accent/30 bg-accent/10 text-xs flex items-center justify-between hover:border-accent transition-colors"
+                    className="p-3 rounded-lg border border-accent/30 bg-accent/10 text-xs flex items-center justify-between hover:border-accent dark:bg-surface-2 dark:border-border-strong transition-colors"
                   >
                     <span className="font-mono font-bold text-accent">{node.data.label}</span>
                     <StatusBadge status={node.data.status} size="sm" />
@@ -321,7 +321,7 @@ export function BackendsPage() {
                 {topology?.nodes.filter((n) => n.type === 'backend').slice(0, 25).map((node) => (
                   <div
                     key={node.id}
-                    className="p-2.5 rounded-lg border border-action-return/30 bg-action-return/10 text-xs flex items-center justify-between hover:border-action-return transition-colors"
+                    className="p-2.5 rounded-lg border border-action-return/30 bg-action-return/10 text-xs flex items-center justify-between hover:border-action-return dark:bg-surface-2 dark:border-border-strong transition-colors"
                   >
                     <div>
                       <div className="font-mono font-semibold text-action-return">{node.data.label}</div>

@@ -4,12 +4,15 @@ export interface PaletteTokens {
   bg: string;
   surface: string;
   surface2: string;
+  surface3?: string;
   border: string;
   borderStrong: string;
   text: string;
   textMuted: string;
   primary: string;
   onPrimary: string;
+  brand?: string;
+  onBrand?: string;
   accent: string;
   status: {
     up: string;
@@ -24,6 +27,7 @@ export const lightTokens: PaletteTokens = {
   bg: '#F4F0E5',
   surface: '#FBF9F3',
   surface2: '#EBE5D6',
+  surface3: '#EBE5D6',
   border: '#CFC6AE',
   borderStrong: '#8A8068',
   text: '#2A2418',
@@ -41,22 +45,23 @@ export const lightTokens: PaletteTokens = {
 };
 
 export const darkTokens: PaletteTokens = {
-  bg: '#1C1912',
-  surface: '#26221A',
-  surface2: '#302B21',
-  border: '#5A5242',
-  borderStrong: '#7D7460',
+  bg: '#21080E',
+  surface: '#320B14',
+  surface2: '#430F1B',
+  surface3: '#531322',
+  border: '#531322',
+  borderStrong: '#94606F',
   text: '#F4F0E5',
-  textMuted: '#B5AD99',
-  primary: '#8CC4B2',
-  onPrimary: '#14201B',
-  accent: '#E8956A',
+  textMuted: '#CBB4B4',
+  primary: '#EFC9A3',
+  onPrimary: '#21080E',
+  accent: '#F2A0B0',
   status: {
-    up: '#5DBB85',
-    down: '#F08A7E',
-    slow: '#E3A94A',
-    unknown: '#A39B88',
-    info: '#86B8E0',
+    up: '#6FD09A',
+    down: '#FF9A8E',
+    slow: '#EDB65A',
+    unknown: '#B5A3A3',
+    info: '#8EC1EA',
   },
 };
 
@@ -101,7 +106,6 @@ export function runChecks(): { results: CheckResult[]; passed: boolean } {
   const results: CheckResult[] = [];
 
   const checkTheme = (themeName: string, t: PaletteTokens) => {
-    // 1. text or status colour >= 4.5:1 on --bg and --surface
     const fgItems: [string, string][] = [
       ['--text', t.text],
       ['--text-muted', t.textMuted],
@@ -114,79 +118,137 @@ export function runChecks(): { results: CheckResult[]; passed: boolean } {
       ['status.info', t.status.info],
     ];
 
-    const bgSurfaces: [string, string][] = [
-      ['--bg', t.bg],
-      ['--surface', t.surface],
-    ];
+    if (themeName === 'Dark' && t.surface3) {
+      // Dark theme: check all 9 fgItems on all 4 burgundy backgrounds
+      const bgSurfaces: [string, string][] = [
+        ['--bg', t.bg],
+        ['--surface', t.surface],
+        ['--surface-2', t.surface2],
+        ['--surface-3', t.surface3],
+      ];
 
-    for (const [fgName, fgHex] of fgItems) {
-      for (const [bgName, bgHex] of bgSurfaces) {
-        const ratio = contrastRatio(fgHex, bgHex);
+      for (const [fgName, fgHex] of fgItems) {
+        for (const [bgName, bgHex] of bgSurfaces) {
+          const ratio = contrastRatio(fgHex, bgHex);
+          results.push({
+            theme: themeName,
+            foreground: fgName,
+            fgHex,
+            background: bgName,
+            bgHex,
+            ratio,
+            minRatio: 4.5,
+            passed: ratio >= 4.5,
+          });
+        }
+      }
+
+      // --on-primary on --primary >= 4.5:1
+      const onPrimaryRatio = contrastRatio(t.onPrimary, t.primary);
+      results.push({
+        theme: themeName,
+        foreground: '--on-primary',
+        fgHex: t.onPrimary,
+        background: '--primary',
+        bgHex: t.primary,
+        ratio: onPrimaryRatio,
+        minRatio: 4.5,
+        passed: onPrimaryRatio >= 4.5,
+      });
+
+      // --border-strong >= 3:1 on --bg, --surface, and --surface-2
+      const borderSurfaces: [string, string][] = [
+        ['--bg', t.bg],
+        ['--surface', t.surface],
+        ['--surface-2', t.surface2],
+      ];
+
+      for (const [bgName, bgHex] of borderSurfaces) {
+        const ratio = contrastRatio(t.borderStrong, bgHex);
         results.push({
           theme: themeName,
-          foreground: fgName,
-          fgHex,
+          foreground: '--border-strong',
+          fgHex: t.borderStrong,
           background: bgName,
           bgHex,
           ratio,
-          minRatio: 4.5,
-          passed: ratio >= 4.5,
+          minRatio: 3.0,
+          passed: ratio >= 3.0,
         });
       }
-    }
+    } else {
+      // Light theme: keep light-theme checks as they are
+      const bgSurfaces: [string, string][] = [
+        ['--bg', t.bg],
+        ['--surface', t.surface],
+      ];
 
-    // 2. --on-primary on --primary >= 4.5:1
-    const onPrimaryRatio = contrastRatio(t.onPrimary, t.primary);
-    results.push({
-      theme: themeName,
-      foreground: '--on-primary',
-      fgHex: t.onPrimary,
-      background: '--primary',
-      bgHex: t.primary,
-      ratio: onPrimaryRatio,
-      minRatio: 4.5,
-      passed: onPrimaryRatio >= 4.5,
-    });
+      for (const [fgName, fgHex] of fgItems) {
+        for (const [bgName, bgHex] of bgSurfaces) {
+          const ratio = contrastRatio(fgHex, bgHex);
+          results.push({
+            theme: themeName,
+            foreground: fgName,
+            fgHex,
+            background: bgName,
+            bgHex,
+            ratio,
+            minRatio: 4.5,
+            passed: ratio >= 4.5,
+          });
+        }
+      }
 
-    // 3. --border-strong >= 3:1 on --bg and --surface
-    for (const [bgName, bgHex] of bgSurfaces) {
-      const ratio = contrastRatio(t.borderStrong, bgHex);
+      const onPrimaryRatio = contrastRatio(t.onPrimary, t.primary);
       results.push({
         theme: themeName,
-        foreground: '--border-strong',
-        fgHex: t.borderStrong,
-        background: bgName,
-        bgHex,
-        ratio,
-        minRatio: 3.0,
-        passed: ratio >= 3.0,
+        foreground: '--on-primary',
+        fgHex: t.onPrimary,
+        background: '--primary',
+        bgHex: t.primary,
+        ratio: onPrimaryRatio,
+        minRatio: 4.5,
+        passed: onPrimaryRatio >= 4.5,
+      });
+
+      for (const [bgName, bgHex] of bgSurfaces) {
+        const ratio = contrastRatio(t.borderStrong, bgHex);
+        results.push({
+          theme: themeName,
+          foreground: '--border-strong',
+          fgHex: t.borderStrong,
+          background: bgName,
+          bgHex,
+          ratio,
+          minRatio: 3.0,
+          passed: ratio >= 3.0,
+        });
+      }
+
+      const textOnSurface2 = contrastRatio(t.text, t.surface2);
+      results.push({
+        theme: themeName,
+        foreground: '--text',
+        fgHex: t.text,
+        background: '--surface-2',
+        bgHex: t.surface2,
+        ratio: textOnSurface2,
+        minRatio: 4.5,
+        passed: textOnSurface2 >= 4.5,
+      });
+
+      const mutedOnSurface2 = contrastRatio(t.textMuted, t.surface2);
+      results.push({
+        theme: themeName,
+        foreground: '--text-muted',
+        fgHex: t.textMuted,
+        background: '--surface-2',
+        bgHex: t.surface2,
+        ratio: mutedOnSurface2,
+        minRatio: 4.5,
+        passed: mutedOnSurface2 >= 4.5,
       });
     }
-
-    // 4. --text or --text-muted >= 4.5:1 on --surface-2
-    const textOnSurface2 = contrastRatio(t.text, t.surface2);
-    results.push({
-      theme: themeName,
-      foreground: '--text',
-      fgHex: t.text,
-      background: '--surface-2',
-      bgHex: t.surface2,
-      ratio: textOnSurface2,
-      minRatio: 4.5,
-      passed: textOnSurface2 >= 4.5,
-    });
-
-    const mutedOnSurface2 = contrastRatio(t.textMuted, t.surface2);
-    results.push({
-      theme: themeName,
-      foreground: '--text-muted',
-      fgHex: t.textMuted,
-      background: '--surface-2',
-      bgHex: t.surface2,
-      ratio: mutedOnSurface2,
-      minRatio: 4.5,
-      passed: mutedOnSurface2 >= 4.5,
-    });
   };
 
   checkTheme('Light', lightTokens);
