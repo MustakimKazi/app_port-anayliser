@@ -464,7 +464,7 @@ export function PortsPage() {
                       key={port.id}
                       onClick={() => setSelectedPortId(port.id)}
                       className={`hover:bg-surface-2 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-primary/10 dark:bg-surface-3' : ''
+                        isSelected ? 'bg-primary/10' : ''
                       }`}
                     >
                       <td className={`${py} px-3`} onClick={(e) => e.stopPropagation()}>
