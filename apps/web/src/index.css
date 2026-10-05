@@ -51,44 +51,44 @@
 
   .dark {
     color-scheme: dark;
-    --bg: #0B1220;
-    --surface: #10182B;
+    --bg: #0F172A;
+    --surface: #162032;
     --surface-2: #1E293B;
     --border: #1E293B;
     --border-strong: #64748B;
-    --text: #F8FAFC;
+    --text: #E2E8F0;
     --text-muted: #94A3B8;
-    --primary: #818CF8;
-    --on-primary: #0B1220;
-    --accent: #38BDF8;
+    --primary: #939BF4;
+    --on-primary: #0F172A;
+    --accent: #56C5F5;
 
     /* Status colours */
     --status-up: #4ADE80;
-    --status-down: #FB7185;
+    --status-down: #F87171;
     --status-slow: #FBBF24;
     --status-unknown: #94A3B8;
-    --status-info: #38BDF8;
+    --status-info: #56C5F5;
 
     /* Route action colours */
-    --action-proxy: #818CF8;
-    --action-static: #38BDF8;
+    --action-proxy: #939BF4;
+    --action-static: #56C5F5;
     --action-redirect: #FBBF24;
     --action-return: #C084FC;
-    --action-status: #FB7185;
+    --action-status: #F87171;
 
     /* Issue priority colours */
-    --priority-high: #FB7185;
+    --priority-high: #F87171;
     --priority-medium: #FBBF24;
-    --priority-low: #38BDF8;
+    --priority-low: #56C5F5;
     --priority-info: #94A3B8;
 
     /* Chart series colours */
-    --chart-1: #818CF8;
-    --chart-2: #38BDF8;
+    --chart-1: #939BF4;
+    --chart-2: #56C5F5;
     --chart-3: #4ADE80;
     --chart-4: #FBBF24;
     --chart-5: #C084FC;
-    --chart-6: #FB7185;
+    --chart-6: #F87171;
     --chart-7: #94A3B8;
     --chart-8: #F472B6;
 

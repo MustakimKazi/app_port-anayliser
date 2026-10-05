@@ -41,22 +41,22 @@ export const lightTokens: PaletteTokens = {
 };
 
 export const darkTokens: PaletteTokens = {
-  bg: '#0B1220',
-  surface: '#10182B',
+  bg: '#0F172A',
+  surface: '#162032',
   surface2: '#1E293B',
   border: '#1E293B',
   borderStrong: '#64748B',
-  text: '#F8FAFC',
+  text: '#E2E8F0',
   textMuted: '#94A3B8',
-  primary: '#818CF8',
-  onPrimary: '#0B1220',
-  accent: '#38BDF8',
+  primary: '#939BF4',
+  onPrimary: '#0F172A',
+  accent: '#56C5F5',
   status: {
     up: '#4ADE80',
-    down: '#FB7185',
+    down: '#F87171',
     slow: '#FBBF24',
     unknown: '#94A3B8',
-    info: '#38BDF8',
+    info: '#56C5F5',
   },
 };
 

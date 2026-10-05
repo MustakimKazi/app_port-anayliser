@@ -8,16 +8,16 @@
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --fav-bg: #0B1220;
-        --fav-ring: #818CF8;
-        --fav-dash: #38BDF8;
+        --fav-bg: #0F172A;
+        --fav-ring: #939BF4;
+        --fav-dash: #56C5F5;
         --fav-dot: #4ADE80;
       }
     }
   </style>
-  <rect width="32" height="32" rx="8" fill="var(--fav-bg, #0B1220)"/>
-  <circle cx="16" cy="16" r="10" stroke="var(--fav-ring, #818CF8)" stroke-width="2" stroke-opacity="0.4"/>
-  <circle cx="16" cy="16" r="6" stroke="var(--fav-dash, #38BDF8)" stroke-width="2" stroke-dasharray="4 2"/>
+  <rect width="32" height="32" rx="8" fill="var(--fav-bg, #0F172A)"/>
+  <circle cx="16" cy="16" r="10" stroke="var(--fav-ring, #939BF4)" stroke-width="2" stroke-opacity="0.4"/>
+  <circle cx="16" cy="16" r="6" stroke="var(--fav-dash, #56C5F5)" stroke-width="2" stroke-dasharray="4 2"/>
   <circle cx="16" cy="16" r="2.5" fill="var(--fav-dot, #4ADE80)"/>
-  <path d="M16 6V10M16 22V26M6 16H10M22 16H26" stroke="var(--fav-ring, #818CF8)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 6V10M16 22V26M6 16H10M22 16H26" stroke="var(--fav-ring, #939BF4)" stroke-width="2" stroke-linecap="round"/>
 </svg>
