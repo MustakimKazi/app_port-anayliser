@@ -1,0 +1,33 @@
+{
+  "name": "portwatch",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=@portwatch/api\" \"npm run dev --workspace=@portwatch/web\"",
+    "dev:api": "npm run dev --workspace=@portwatch/api",
+    "dev:web": "npm run dev --workspace=@portwatch/web",
+    "build": "npm run build --workspace=@portwatch/api && npm run build --workspace=@portwatch/web",
+    "seed": "tsx scripts/seed.ts",
+    "test": "npm run test --workspace=@portwatch/api",
+    "check:contrast": "tsx scripts/check-contrast.ts",
+    "check:no-literals": "tsx scripts/check-no-literals.ts",
+    "prisma:generate": "npm run prisma:generate --workspace=@portwatch/api",
+    "prisma:push": "npm run prisma:push --workspace=@portwatch/api",
+    "prisma:migrate": "npm run prisma:migrate --workspace=@portwatch/api"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.5.4",
+    "concurrently": "^8.2.2",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "xlsx": "^0.18.5"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "dotenv": "^16.4.5"
+  }
+}

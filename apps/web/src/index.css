@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: #F4F0E5;
+    --surface: #FBF9F3;
+    --surface-2: #EBE5D6;
+    --border: #CFC6AE;
+    --border-strong: #8A8068;
+    --text: #2A2418;
+    --text-muted: #5E5543;
+    --primary: #2F5D50;
+    --on-primary: #FBF9F3;
+    --accent: #A8481F;
+
+    /* Status colours */
+    --status-up: #2B7A4B;
+    --status-down: #B3372B;
+    --status-slow: #8F5A00;
+    --status-unknown: #6E6656;
+    --status-info: #2A5F8A;
+
+    /* Route action colours */
+    --action-proxy: #2F5D50;
+    --action-static: #2A5F8A;
+    --action-redirect: #8F5A00;
+    --action-return: #7A4A8C;
+    --action-status: #A8481F;
+
+    /* Issue priority colours */
+    --priority-high: #B3372B;
+    --priority-medium: #8F5A00;
+    --priority-low: #2A5F8A;
+    --priority-info: #6E6656;
+
+    /* Chart series colours */
+    --chart-1: #2F5D50;
+    --chart-2: #A8481F;
+    --chart-3: #2A5F8A;
+    --chart-4: #8F5A00;
+    --chart-5: #7A4A8C;
+    --chart-6: #2B7A4B;
+    --chart-7: #6E6656;
+    --chart-8: #B3372B;
+
+    --status-badge-alpha: 12%;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --bg: #1C1912;
+    --surface: #26221A;
+    --surface-2: #302B21;
+    --border: #5A5242;
+    --border-strong: #7D7460;
+    --text: #F4F0E5;
+    --text-muted: #B5AD99;
+    --primary: #8CC4B2;
+    --on-primary: #14201B;
+    --accent: #E8956A;
+
+    /* Status colours */
+    --status-up: #5DBB85;
+    --status-down: #F08A7E;
+    --status-slow: #E3A94A;
+    --status-unknown: #A39B88;
+    --status-info: #86B8E0;
+
+    /* Route action colours */
+    --action-proxy: #8CC4B2;
+    --action-static: #86B8E0;
+    --action-redirect: #E3A94A;
+    --action-return: #C7A0D8;
+    --action-status: #E8956A;
+
+    /* Issue priority colours */
+    --priority-high: #F08A7E;
+    --priority-medium: #E3A94A;
+    --priority-low: #86B8E0;
+    --priority-info: #A39B88;
+
+    /* Chart series colours */
+    --chart-1: #8CC4B2;
+    --chart-2: #E8956A;
+    --chart-3: #86B8E0;
+    --chart-4: #E3A94A;
+    --chart-5: #C7A0D8;
+    --chart-6: #5DBB85;
+    --chart-7: #A39B88;
+    --chart-8: #F08A7E;
+
+    --status-badge-alpha: 18%;
+  }
+
+  * {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--primary) 25%, transparent);
+    color: var(--text);
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+}
+
+/* Monospace with tabular numbers for ports, IPs, latencies, dates */
+.font-mono-numbers {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Glassmorphism effects */
+.glass {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-light {
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Badges styling */
+.badge-status-up {
+  background-color: color-mix(in srgb, var(--status-up) var(--status-badge-alpha), var(--surface));
+  color: var(--status-up);
+  border-color: color-mix(in srgb, var(--status-up) 30%, transparent);
+}
+.badge-status-down {
+  background-color: color-mix(in srgb, var(--status-down) var(--status-badge-alpha), var(--surface));
+  color: var(--status-down);
+  border-color: color-mix(in srgb, var(--status-down) 30%, transparent);
+}
+.badge-status-slow {
+  background-color: color-mix(in srgb, var(--status-slow) var(--status-badge-alpha), var(--surface));
+  color: var(--status-slow);
+  border-color: color-mix(in srgb, var(--status-slow) 30%, transparent);
+}
+.badge-status-unknown {
+  background-color: color-mix(in srgb, var(--status-unknown) var(--status-badge-alpha), var(--surface));
+  color: var(--status-unknown);
+  border-color: color-mix(in srgb, var(--status-unknown) 30%, transparent);
+}
+.badge-status-info {
+  background-color: color-mix(in srgb, var(--status-info) var(--status-badge-alpha), var(--surface));
+  color: var(--status-info);
+  border-color: color-mix(in srgb, var(--status-info) 30%, transparent);
+}
+
+.badge-action-proxy {
+  background-color: color-mix(in srgb, var(--action-proxy) var(--status-badge-alpha), var(--surface));
+  color: var(--action-proxy);
+  border-color: color-mix(in srgb, var(--action-proxy) 30%, transparent);
+}
+.badge-action-static {
+  background-color: color-mix(in srgb, var(--action-static) var(--status-badge-alpha), var(--surface));
+  color: var(--action-static);
+  border-color: color-mix(in srgb, var(--action-static) 30%, transparent);
+}
+.badge-action-redirect {
+  background-color: color-mix(in srgb, var(--action-redirect) var(--status-badge-alpha), var(--surface));
+  color: var(--action-redirect);
+  border-color: color-mix(in srgb, var(--action-redirect) 30%, transparent);
+}
+.badge-action-return {
+  background-color: color-mix(in srgb, var(--action-return) var(--status-badge-alpha), var(--surface));
+  color: var(--action-return);
+  border-color: color-mix(in srgb, var(--action-return) 30%, transparent);
+}
+.badge-action-status {
+  background-color: color-mix(in srgb, var(--action-status) var(--status-badge-alpha), var(--surface));
+  color: var(--action-status);
+  border-color: color-mix(in srgb, var(--action-status) 30%, transparent);
+}
+
+.badge-priority-high {
+  background-color: color-mix(in srgb, var(--priority-high) var(--status-badge-alpha), var(--surface));
+  color: var(--priority-high);
+  border-color: color-mix(in srgb, var(--priority-high) 30%, transparent);
+}
+.badge-priority-medium {
+  background-color: color-mix(in srgb, var(--priority-medium) var(--status-badge-alpha), var(--surface));
+  color: var(--priority-medium);
+  border-color: color-mix(in srgb, var(--priority-medium) 30%, transparent);
+}
+.badge-priority-low {
+  background-color: color-mix(in srgb, var(--priority-low) var(--status-badge-alpha), var(--surface));
+  color: var(--priority-low);
+  border-color: color-mix(in srgb, var(--priority-low) 30%, transparent);
+}
+.badge-priority-info {
+  background-color: color-mix(in srgb, var(--priority-info) var(--status-badge-alpha), var(--surface));
+  color: var(--priority-info);
+  border-color: color-mix(in srgb, var(--priority-info) 30%, transparent);
+}
+
+.badge-unresolved {
+  background-color: color-mix(in srgb, var(--status-slow) var(--status-badge-alpha), var(--surface));
+  color: var(--status-slow);
+  border-color: color-mix(in srgb, var(--status-slow) 30%, transparent);
+}

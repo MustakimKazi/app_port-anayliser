@@ -1,0 +1,308 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("admin") // "admin" | "viewer"
+  email        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Server {
+  id           String    @id @default(uuid())
+  name         String
+  host         String
+  kind         String    @default("backend") // "nginx-host" | "backend" | "lan" | "local"
+  groupLabel   String?
+  notes        String?
+  tags         String[]  @default([])
+  customValues Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  backends     Backend[]
+
+  @@map("servers")
+}
+
+model Port {
+  id           String      @id @default(uuid())
+  port         Int         @unique
+  layer        String      @default("http") // "http" | "stream"
+  protocol     String      @default("HTTP") // "HTTP" | "HTTPS" | "TCP"
+  purpose      String?
+  processName  String?
+  pid          Int?
+  listenAddress String?    // "0.0.0.0", "127.0.0.1", "::"
+  isPublic     Boolean     @default(true)
+  isExpected   Boolean     @default(true)
+  status       String      @default("unknown") // "up" | "down" | "slow" | "unknown"
+  latencyMs    Float?
+  lastCheckedAt DateTime?
+  lastSeenUpAt DateTime?
+  tags         String[]    @default([])
+  notes        String?
+  customValues Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  routes       Route[]
+  issues       Issue[]
+
+  @@index([status])
+  @@index([layer])
+  @@index([protocol])
+  @@map("ports")
+}
+
+model Backend {
+  id           String      @id @default(uuid())
+  serverId     String?
+  server       Server?     @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  host         String
+  port         Int
+  label        String?
+  notes        String?
+  status       String      @default("unknown") // "up" | "down" | "slow" | "unknown"
+  latencyMs    Float?
+  lastCheckedAt DateTime?
+  customValues Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  routes       Route[]
+
+  @@unique([host, port])
+  @@index([host])
+  @@index([status])
+  @@map("backends")
+}
+
+model ConfigFile {
+  id          String   @id @default(uuid())
+  filename    String   @unique
+  status      String   @default("active") // "active" | "backup"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  routes      Route[]
+
+  @@index([status])
+  @@map("config_files")
+}
+
+model Route {
+  id           String      @id @default(uuid())
+  rowNum       Int?
+  domain       String
+  domainRaw    String?
+  isCatchAll   Boolean     @default(false)
+  portId       String?
+  port         Port?       @relation(fields: [portId], references: [id], onDelete: SetNull)
+  portNum      Int?
+  portRaw      String?
+  protocol     String      @default("HTTP")
+  path         String      @default("/")
+  paths        String[]    @default([])
+  action       String      @default("Proxy") // "Proxy" | "Static" | "Redirect" | "Return" | "Status"
+  targetRaw    String?
+  targetType   String      @default("unknown") // "url" | "upstream" | "variable" | "static_root" | "redirect" | "status" | "unknown"
+  backendId    String?
+  backend      Backend?    @relation(fields: [backendId], references: [id], onDelete: SetNull)
+  staticRoot   String?
+  redirectCode Int?
+  configFileId String?
+  configFile   ConfigFile? @relation(fields: [configFileId], references: [id], onDelete: SetNull)
+  notes        String?
+  flags        Json?
+  customValues Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  issues       Issue[]
+
+  @@index([domain])
+  @@index([portNum])
+  @@index([action])
+  @@index([targetType])
+  @@map("routes")
+}
+
+model Issue {
+  id             String    @id @default(uuid())
+  issueNum       Int?
+  priority       String    @default("Medium") // "High" | "Medium" | "Low" | "Info"
+  title          String
+  observed       String
+  recommendation String
+  status         String    @default("open") // "open" | "acknowledged" | "resolved" | "ignored"
+  relatedPortId  String?
+  relatedPort    Port?     @relation(fields: [relatedPortId], references: [id], onDelete: SetNull)
+  relatedRouteId String?
+  relatedRoute   Route?    @relation(fields: [relatedRouteId], references: [id], onDelete: SetNull)
+  source         String    @default("imported") // "imported" | "auto-detected" | "manual"
+  autoKey        String?   @unique
+  assignee       String?
+  comments       Json?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([priority])
+  @@index([status])
+  @@index([source])
+  @@map("issues")
+}
+
+model PortCheck {
+  id         String   @id @default(uuid())
+  targetType String   // "port" | "backend" | "route"
+  targetId   String
+  targetName String?
+  checkedAt  DateTime @default(now())
+  status     String   // "up" | "down" | "slow" | "unknown"
+  latencyMs  Float?
+  error      String?
+  checkType  String   // "listener" | "tcp" | "http" | "tls"
+
+  @@index([targetType, targetId])
+  @@index([checkedAt])
+  @@index([status])
+  @@map("port_checks")
+}
+
+model StatusEvent {
+  id         String   @id @default(uuid())
+  targetType String   // "port" | "backend"
+  targetId   String
+  targetName String
+  fromStatus String
+  toStatus   String
+  at         DateTime @default(now())
+  details    Json?
+
+  @@index([targetType, targetId])
+  @@index([at])
+  @@map("status_events")
+}
+
+model CustomField {
+  id           String   @id @default(uuid())
+  entityType   String   // "port" | "route" | "backend" | "server"
+  name         String
+  key          String   @unique
+  fieldType    String   // "text" | "number" | "select" | "multi-select" | "boolean" | "date" | "url"
+  options      Json?    // list of options for select
+  required     Boolean  @default(false)
+  defaultValue String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  values       CustomFieldValue[]
+
+  @@index([entityType])
+  @@map("custom_fields")
+}
+
+model CustomFieldValue {
+  id         String      @id @default(uuid())
+  fieldId    String
+  field      CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+  valueText  String?
+  valueJson  Json?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([fieldId, entityId])
+  @@index([entityType, entityId])
+  @@map("custom_field_values")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  username    String
+  action      String   // "create" | "update" | "delete" | "scan" | "ack" | "resolve"
+  entity      String
+  entityId    String?
+  beforeState Json?
+  afterState  Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model SavedView {
+  id         String   @id @default(uuid())
+  userId     String?
+  name       String
+  page       String   // "ports" | "routes" | "backends" | "issues"
+  filterJson Json
+  isShared   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([page])
+  @@map("saved_views")
+}
+
+model AlertRule {
+  id          String   @id @default(uuid())
+  name        String
+  eventType   String   // "down_duration" | "undocumented_port" | "cert_expiry" | "high_issue"
+  threshold   Int?
+  channels    String[] @default(["log"])
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  logs        AlertLog[]
+
+  @@map("alert_rules")
+}
+
+model AlertLog {
+  id        String    @id @default(uuid())
+  ruleId    String?
+  rule      AlertRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  title     String
+  message   String
+  channel   String
+  status    String    @default("sent") // "sent" | "failed" | "simulated"
+  sentAt    DateTime  @default(now())
+
+  @@index([sentAt])
+  @@map("alert_logs")
+}
+
+model Setting {
+  id                  String   @id @default("global")
+  scanIntervalSec     Int      @default(30)
+  tcpTimeoutMs        Int      @default(3000)
+  slowThresholdMs     Int      @default(1500)
+  concurrencyLimit    Int      @default(20)
+  retentionDays       Int      @default(90)
+  telegramConfig      Json?
+  slackDiscordWebhook String?
+  smtpConfig          Json?
+  genericWebhook      String?
+  updatedAt           DateTime @updatedAt
+
+  @@map("settings")
+}
