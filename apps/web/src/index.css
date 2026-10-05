@@ -51,46 +51,46 @@
 
   .dark {
     color-scheme: dark;
-    --bg: #1C1912;
-    --surface: #26221A;
-    --surface-2: #302B21;
-    --border: #5A5242;
-    --border-strong: #7D7460;
-    --text: #F4F0E5;
-    --text-muted: #B5AD99;
-    --primary: #8CC4B2;
-    --on-primary: #14201B;
-    --accent: #E8956A;
+    --bg: #0B1220;
+    --surface: #10182B;
+    --surface-2: #1E293B;
+    --border: #1E293B;
+    --border-strong: #64748B;
+    --text: #F8FAFC;
+    --text-muted: #94A3B8;
+    --primary: #818CF8;
+    --on-primary: #0B1220;
+    --accent: #38BDF8;
 
     /* Status colours */
-    --status-up: #5DBB85;
-    --status-down: #F08A7E;
-    --status-slow: #E3A94A;
-    --status-unknown: #A39B88;
-    --status-info: #86B8E0;
+    --status-up: #4ADE80;
+    --status-down: #FB7185;
+    --status-slow: #FBBF24;
+    --status-unknown: #94A3B8;
+    --status-info: #38BDF8;
 
     /* Route action colours */
-    --action-proxy: #8CC4B2;
-    --action-static: #86B8E0;
-    --action-redirect: #E3A94A;
-    --action-return: #C7A0D8;
-    --action-status: #E8956A;
+    --action-proxy: #818CF8;
+    --action-static: #38BDF8;
+    --action-redirect: #FBBF24;
+    --action-return: #C084FC;
+    --action-status: #FB7185;
 
     /* Issue priority colours */
-    --priority-high: #F08A7E;
-    --priority-medium: #E3A94A;
-    --priority-low: #86B8E0;
-    --priority-info: #A39B88;
+    --priority-high: #FB7185;
+    --priority-medium: #FBBF24;
+    --priority-low: #38BDF8;
+    --priority-info: #94A3B8;
 
     /* Chart series colours */
-    --chart-1: #8CC4B2;
-    --chart-2: #E8956A;
-    --chart-3: #86B8E0;
-    --chart-4: #E3A94A;
-    --chart-5: #C7A0D8;
-    --chart-6: #5DBB85;
-    --chart-7: #A39B88;
-    --chart-8: #F08A7E;
+    --chart-1: #818CF8;
+    --chart-2: #38BDF8;
+    --chart-3: #4ADE80;
+    --chart-4: #FBBF24;
+    --chart-5: #C084FC;
+    --chart-6: #FB7185;
+    --chart-7: #94A3B8;
+    --chart-8: #F472B6;
 
     --status-badge-alpha: 18%;
   }
