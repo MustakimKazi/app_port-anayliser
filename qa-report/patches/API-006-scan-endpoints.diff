@@ -1,0 +1,26 @@
+--- a/apps/api/src/modules/scan/scan.routes.ts
++++ b/apps/api/src/modules/scan/scan.routes.ts
+@@ -9,8 +9,11 @@
+       return reply.send({ message: 'Scan already in progress' });
+     }
+ 
+-    // Run asynchronously or await
+-    const resultPromise = opts.scanner.runScan();
++    // Run asynchronously; a rejected cycle must be logged, never left as an
++    // unhandled rejection (which kills the process in production mode)
++    opts.scanner.runScan().catch((err) => {
++      request.log.error({ err }, 'manual scan failed');
++    });
+     return reply.send({
+       message: 'Scan triggered successfully',
+       status: 'running'
+@@ -52,7 +55,8 @@
+     reply.raw.setHeader('Content-Type', 'text/event-stream');
+     reply.raw.setHeader('Cache-Control', 'no-cache');
+     reply.raw.setHeader('Connection', 'keep-alive');
+-    reply.raw.setHeader('Access-Control-Allow-Origin', '*');
++    // No Access-Control-Allow-Origin: * here — it would bypass the credentialed
++    // CORS allowlist for a route that streams internal scan data
+ 
+     const clientId = Math.random().toString(36).substring(2, 9);
+     sseManager.addClient(clientId, reply);

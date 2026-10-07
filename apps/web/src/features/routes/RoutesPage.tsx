@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Globe,
   Search,
@@ -10,7 +10,11 @@ import {
   ChevronRight,
   Code,
   Zap,
-  Shield
+  Shield,
+  Plus,
+  Trash2,
+  Archive,
+  RotateCcw
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -19,9 +23,19 @@ import { ActionBadge, UnresolvedBadge } from '../../components/ui/Badge';
 import { Drawer } from '../../components/ui/Drawer';
 import { CodeBlock } from '../../components/ui/CodeBlock';
 import { Route } from '../../types';
+import { AddRouteDialog } from './AddRouteDialog';
+import { RemoveRouteModal } from './RemoveRouteModal';
 
 export function RoutesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+
+  const { data: currentUser } = useQuery<{ role: string; username: string }>({
+    queryKey: ['auth-me'],
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    staleTime: 60000
+  });
+  const isViewer = currentUser?.role === 'viewer';
 
   const q = searchParams.get('q') || '';
   const domainFilter = searchParams.get('domain') || '';
@@ -30,10 +44,28 @@ export function RoutesPage() {
   const unresolvedFilter = searchParams.get('unresolved') || '';
   const catchAllFilter = searchParams.get('catchAll') || '';
   const websocketFilter = searchParams.get('websocket') || '';
+  const showArchived = searchParams.get('showArchived') === 'true';
 
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [groupByDomain, setGroupByDomain] = useState(true);
   const [collapsedDomains, setCollapsedDomains] = useState<Set<string>>(new Set());
+
+  // Dialog states
+  const [isAddRouteOpen, setIsAddRouteOpen] = useState(false);
+  const [routeToRemove, setRouteToRemove] = useState<Route | null>(null);
+
+  // Restore route mutation
+  const restoreRouteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/routes/${id}/restore`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: 'Restored from route drawer' })
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    }
+  });
 
   // Query routes
   const { data, isLoading } = useQuery<{ data: Route[]; pagination: { total: number } }>({
@@ -93,6 +125,18 @@ export function RoutesPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          {!isViewer && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsAddRouteOpen(true)}
+              className="text-xs flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Route</span>
+            </Button>
+          )}
+
           <Button
             variant={groupByDomain ? 'primary' : 'secondary'}
             size="sm"
@@ -162,6 +206,17 @@ export function RoutesPage() {
             <option value="">Websocket: Any</option>
             <option value="true">Has WebSocket</option>
           </select>
+
+          {/* Show Archived Toggle */}
+          <label className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => updateFilter('showArchived', e.target.checked ? 'true' : '')}
+              className="rounded border-border text-primary focus:ring-0"
+            />
+            <span className="text-text-muted">Show Archived</span>
+          </label>
         </div>
       </Card>
 
@@ -413,9 +468,62 @@ export function RoutesPage() {
                 {routeDetail.route.notes}
               </div>
             )}
+
+            {/* Lifecycle & Archive Actions */}
+            <div className="pt-2 border-t border-border">
+              {routeDetail.route.archivedAt ? (
+                <div className="p-3 rounded-lg bg-surface-2 border border-border flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-text">This route is archived</div>
+                    <div className="text-[11px] text-text-muted">
+                      Archived on {new Date(routeDetail.route.archivedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  {!isViewer && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => restoreRouteMutation.mutate(routeDetail.route.id)}
+                      isLoading={restoreRouteMutation.isPending}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restore Route</span>
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                !isViewer && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setRouteToRemove(routeDetail.route)}
+                      className="text-xs flex items-center gap-1.5 text-status-down hover:bg-status-down/10 hover:border-status-down/30"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                      <span>Archive / Remove Route</span>
+                    </Button>
+                  </div>
+                )
+              )}
+            </div>
           </div>
         )}
       </Drawer>
+
+      {/* Add Route Dialog */}
+      <AddRouteDialog
+        isOpen={isAddRouteOpen}
+        onClose={() => setIsAddRouteOpen(false)}
+      />
+
+      {/* Remove Route Modal */}
+      <RemoveRouteModal
+        route={routeToRemove}
+        onClose={() => setRouteToRemove(null)}
+        onArchived={() => setSelectedRouteId(null)}
+      />
     </div>
   );
 }

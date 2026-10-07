@@ -397,28 +397,39 @@ export async function importParsedData(
   // Step 4: Ports
   const portMap = new Map<number, string>(); // portNum -> id
   for (const p of data.ports) {
-    const upserted = await prisma.port.upsert({
-      where: { port: p.port },
-      update: {
-        layer: p.layer,
-        protocol: p.protocol,
-        purpose: p.purpose,
-        listenAddress: p.listenAddress,
-        isPublic: p.isPublic
-      },
-      create: {
-        port: p.port,
-        layer: p.layer,
-        protocol: p.protocol,
-        purpose: p.purpose,
-        listenAddress: p.listenAddress,
-        isPublic: p.isPublic,
-        isExpected: true,
-        status: 'unknown',
-        tags: p.layer === 'stream' ? ['stream', 'tcp'] : ['http']
-      }
+    const existing = await prisma.port.findFirst({
+      where: { port: p.port, archivedAt: null }
     });
-    portMap.set(p.port, upserted.id);
+    let portId: string;
+    if (existing) {
+      await prisma.port.update({
+        where: { id: existing.id },
+        data: {
+          layer: p.layer,
+          protocol: p.protocol,
+          purpose: p.purpose,
+          listenAddress: p.listenAddress,
+          isPublic: p.isPublic
+        }
+      });
+      portId = existing.id;
+    } else {
+      const created = await prisma.port.create({
+        data: {
+          port: p.port,
+          layer: p.layer,
+          protocol: p.protocol,
+          purpose: p.purpose,
+          listenAddress: p.listenAddress,
+          isPublic: p.isPublic,
+          isExpected: true,
+          status: 'unknown',
+          tags: p.layer === 'stream' ? ['stream', 'tcp'] : ['http']
+        }
+      });
+      portId = created.id;
+    }
+    portMap.set(p.port, portId);
   }
 
   // Step 5: Routes (Domain Map - 106 rows)

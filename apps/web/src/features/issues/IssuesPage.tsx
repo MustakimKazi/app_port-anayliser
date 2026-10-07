@@ -5,7 +5,10 @@ import {
   Search,
   Send,
   MessageSquare,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -14,10 +17,18 @@ import { PriorityBadge } from '../../components/ui/Badge';
 import { CodeBlock } from '../../components/ui/CodeBlock';
 import { Drawer } from '../../components/ui/Drawer';
 import { Issue, IssueStatus } from '../../types';
+import { AddPortDialog } from '../ports/AddPortDialog';
 
 export function IssuesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+
+  const { data: currentUser } = useQuery<{ role: string; username: string }>({
+    queryKey: ['auth-me'],
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    staleTime: 60000
+  });
+  const isViewer = currentUser?.role === 'viewer';
 
   const priorityFilter = searchParams.get('priority') || '';
   const statusFilter = searchParams.get('status') || '';
@@ -27,6 +38,14 @@ export function IssuesPage() {
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [commentInput, setCommentInput] = useState('');
+
+  // Add Port Dialog state for undocumented ports
+  const [isAddPortOpen, setIsAddPortOpen] = useState(false);
+  const [addPortPrefill, setAddPortPrefill] = useState<{
+    port?: number;
+    processName?: string;
+    bindAddress?: string;
+  } | undefined>(undefined);
 
   // Fetch issues
   const { data: issues = [] } = useQuery<Issue[]>({
@@ -57,6 +76,25 @@ export function IssuesPage() {
       if (selectedIssue?.id === updated.id) {
         setSelectedIssue(updated);
       }
+    }
+  });
+
+  const markActiveMutation = useMutation({
+    mutationFn: async ({ portId, issueId }: { portId: string; issueId: string }) => {
+      await apiRequest(`/ports/${portId}/lifecycle`, {
+        method: 'POST',
+        body: JSON.stringify({ lifecycle: 'active', reason: 'Activated from listening detection in issues' })
+      });
+      await apiRequest(`/issues/${issueId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'resolved', newComment: 'Marked active via one-click resolution' })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['issues'] });
+      queryClient.invalidateQueries({ queryKey: ['ports'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      setSelectedIssue(null);
     }
   });
 
@@ -294,8 +332,81 @@ export function IssuesPage() {
         }
         subtitle={`Status: ${selectedIssue?.status.toUpperCase()} • Source: ${selectedIssue?.source}`}
       >
-        {selectedIssue && (
+        {selectedIssue && (() => {
+          const isUndocumented = selectedIssue.title.toLowerCase().includes('undocumented') || selectedIssue.autoKey?.includes('auto-undocumented');
+          const isPlannedListening = (selectedIssue.title.toLowerCase().includes('planned') || selectedIssue.title.toLowerCase().includes('reserved')) && (selectedIssue.title.toLowerCase().includes('listening') || selectedIssue.autoKey?.includes('auto-planned-listening'));
+          const portMatch = selectedIssue.title.match(/port\s+(\d+)/i) || selectedIssue.observed.match(/port\s+(\d+)/i);
+          const extractedPort = portMatch ? parseInt(portMatch[1], 10) : undefined;
+          const procMatch = selectedIssue.observed.match(/process\s+'([^']+)'/i);
+          const extractedProcess = procMatch ? procMatch[1] : undefined;
+          const bindMatch = selectedIssue.observed.match(/\((0\.0\.0\.0|127\.0\.0\.1|[\d\.:]+)\)/);
+          const extractedBind = bindMatch ? bindMatch[1] : undefined;
+
+          return (
           <div className="space-y-6">
+            {/* Planned Port Now Listening One-Click Action Banner */}
+            {isPlannedListening && selectedIssue.relatedPortId && (
+              <div className="p-4 rounded-xl border border-primary/40 bg-primary/10 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-text flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-primary" />
+                    <span>Port {extractedPort} is planned and now listening!</span>
+                  </div>
+                  <div className="text-[11px] text-text-muted mt-0.5">
+                    The background scanner found this port listening on the host. Mark it active with one click to begin automated checks and alerts.
+                  </div>
+                </div>
+                {!isViewer && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="text-xs shrink-0"
+                    onClick={() =>
+                      markActiveMutation.mutate({
+                        portId: selectedIssue.relatedPortId!,
+                        issueId: selectedIssue.id
+                      })
+                    }
+                    isLoading={markActiveMutation.isPending}
+                  >
+                    Mark Active (One-Click)
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Undocumented Listening Port Action Banner */}
+            {isUndocumented && (
+              <div className="p-4 rounded-xl border border-accent/40 bg-accent/10 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-text flex items-center gap-1.5">
+                    <Plus className="w-4 h-4 text-accent" />
+                    <span>Undocumented Port {extractedPort} Detected</span>
+                  </div>
+                  <div className="text-[11px] text-text-muted mt-0.5">
+                    Process: <span className="font-mono text-text">{extractedProcess || 'unknown'}</span> • Bind: <span className="font-mono text-text">{extractedBind || 'unknown'}</span>. Add it to PortWatch documentation now.
+                  </div>
+                </div>
+                {!isViewer && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="text-xs shrink-0"
+                    onClick={() => {
+                      setAddPortPrefill({
+                        port: extractedPort,
+                        processName: extractedProcess,
+                        bindAddress: extractedBind
+                      });
+                      setIsAddPortOpen(true);
+                    }}
+                  >
+                    Add to Documentation
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Status Workflow Action Buttons */}
             <div className="p-4 rounded-xl border border-border bg-surface-2/60 space-y-2">
               <span className="text-xs font-semibold text-text">Workflow Actions</span>
@@ -396,8 +507,19 @@ export function IssuesPage() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </Drawer>
+
+      {/* Add Port Dialog for undocumented ports */}
+      <AddPortDialog
+        isOpen={isAddPortOpen}
+        onClose={() => {
+          setIsAddPortOpen(false);
+          setAddPortPrefill(undefined);
+        }}
+        prefill={addPortPrefill}
+      />
     </div>
   );
 }

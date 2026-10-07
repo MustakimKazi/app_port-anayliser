@@ -1,0 +1,33 @@
+DB: postgresql://postgres:***@localhost:5432/portwatch_qa
+
+[1] Row counts
+  ok: routes: expected 106, got 106
+  MISMATCH: ports: expected 19, got 23
+  ok: backends: expected 34, got 34
+  ok: config_files: expected 48, got 48
+  MISMATCH: issues: expected 12, got 21
+
+[2] Domain Map -> routes (row by row)
+  ok: all 106 Domain Map rows match
+
+[3] Special route semantics
+  ok: catch-all routes: excel 8, db 8
+  ok: upstream targets: excel 14, db 14
+  ok: $variable targets: excel 2, db 2
+  ok: (not captured) targets: excel 2, db unknown-type 2
+  ok: formula-looking target cells in Excel: 0 (must be imported as text)
+
+[4] Port Summary -> ports
+  MISMATCH: port count excel 19 vs db 23
+
+[5] Backends -> backends
+  ok: all backends present (db has 34, excel 34)
+
+[6] Config Files -> config_files
+  ok: all config files present (db 48, excel 48)
+  ok: backup config files: excel 10, db 10
+
+[7] Issues & Checks -> issues
+  ok: all 12 imported issues present
+
+==== 3 MISMATCHES ====

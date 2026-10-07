@@ -1,0 +1,10 @@
+validation tests against http://localhost:3100
+
+  FAIL  ?limit=Infinity -> 400 (was 500) — got 500
+  FAIL  ?page=0 -> 400 (was 500) — got 500
+  FAIL  ?page=-3 -> 400 — got 500
+  FAIL  ?limit=999999 -> 400 (bounded) — got 200
+  PASS  invalid query -> 400 without raw ZodError dump
+  FAIL  bad issue payload -> 400 without internals — got 500, leak=true
+
+5 FAILURE(S)

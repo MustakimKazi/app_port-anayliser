@@ -1,0 +1,76 @@
+--- a/apps/api/src/modules/import-export/import-excel.ts
++++ b/apps/api/src/modules/import-export/import-excel.ts
+@@ -280,7 +280,24 @@
+       };
+     });
+ 
+-  return { configFiles, ports, backends, routes, issues };
++  const parsed = { configFiles, ports, backends, routes, issues };
++  const totalRows =
++    parsed.configFiles.length +
++    parsed.ports.length +
++    parsed.backends.length +
++    parsed.routes.length +
++    parsed.issues.length;
++
++  if (totalRows === 0) {
++    const err: any = new Error(
++      'Workbook contains no importable rows (expected sheets such as ' +
++        '"Config Files", "Port Summary", "Domain Map"). Import aborted — nothing was changed.'
++    );
++    err.code = 'EMPTY_WORKBOOK';
++    throw err;
++  }
++
++  return parsed;
+ }
+ 
+ export async function importParsedData(
+@@ -433,8 +450,14 @@
+   }
+ 
+   // Step 5: Routes (Domain Map - 106 rows)
+-  // Delete existing imported routes to allow clean idempotency while maintaining FKs
+-  await prisma.route.deleteMany({});
++  // Replace only the routes contained in this workbook (matched by rowNum) so a
++  // partial or empty import can never wipe rows that were not re-imported.
++  const importedRowNums = data.routes.map((r) => r.rowNum);
++  if (importedRowNums.length > 0) {
++    await prisma.route.deleteMany({ where: { rowNum: { in: importedRowNums } } });
++  } else {
++    warnings.push('Workbook had no Domain Map rows — existing routes were left untouched');
++  }
+ 
+   for (const r of data.routes) {
+     const portId = r.portNum !== null ? portMap.get(r.portNum) || null : null;
+--- a/apps/api/src/modules/import-export/import-export.routes.ts
++++ b/apps/api/src/modules/import-export/import-export.routes.ts
+@@ -12,9 +12,11 @@
+     }
+ 
+     const buffer = await data.toBuffer();
++    let phase: 'parse' | 'write' = 'parse';
+     try {
+       const wb = xlsx.read(buffer, { type: 'buffer' });
+       const parsed = parseWorkbook(wb);
++      phase = 'write';
+       const result = await importParsedData(prisma, parsed);
+ 
+       await prisma.auditLog.create({
+@@ -32,10 +34,12 @@
+         result
+       });
+     } catch (err: any) {
+-      return reply.status(500).send({
+-        error: 'Failed to process spreadsheet file',
+-        details: err.message
+-      });
++      request.log.error({ err, phase }, 'import failed');
++      if (phase === 'parse') {
++        // Bad/foreign/empty file: report it, change nothing (HTTP 400)
++        return reply.status(400).send({ error: `Could not import file: ${err.message}` });
++      }
++      return reply.status(500).send({ error: 'Import failed while writing to the database' });
+     }
+   });
+ 

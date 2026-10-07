@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Globe, Server, AlertTriangle, Layers, FileText, Shield, ArrowRight } from 'lucide-react';
+import { Search, Globe, Server, AlertTriangle, Layers, FileText, Shield, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../lib/api';
 import { Port, Route } from '../../types';
@@ -8,9 +8,10 @@ import { Port, Route } from '../../types';
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAddPort?: () => void;
 }
 
-export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
+export function CommandPalette({ isOpen, onClose, onOpenAddPort }: CommandPaletteProps) {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
@@ -34,9 +35,38 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  const { data: currentUser } = useQuery<{ role: string; username: string }>({
+    queryKey: ['auth-me'],
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    staleTime: 60000
+  });
+  const isViewer = currentUser?.role === 'viewer';
 
   const query = search.toLowerCase().trim();
+
+  // Quick Actions
+  const actions = [
+    ...(!isViewer && onOpenAddPort ? [{
+      name: 'Add port',
+      description: 'Open guided dialog to add an active, planned or reserved port',
+      action: () => {
+        onClose();
+        onOpenAddPort();
+      },
+      icon: Plus,
+      shortcut: 'Action'
+    }] : []),
+    {
+      name: 'Archived Ports & Trash',
+      description: 'View soft-deleted ports and restore them',
+      action: () => {
+        onClose();
+        navigate('/ports?showArchived=true');
+      },
+      icon: Trash2,
+      shortcut: 'Trash'
+    }
+  ].filter(a => !query || a.name.toLowerCase().includes(query) || a.description.toLowerCase().includes(query));
 
   // Pages
   const pages = [
@@ -75,6 +105,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
       <div className="fixed inset-0 bg-text/50 backdrop-blur-sm" onClick={onClose} />
@@ -97,6 +129,36 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
         {/* Results */}
         <div className="max-h-96 overflow-y-auto p-2 space-y-3">
+          {/* Quick Actions */}
+          {actions.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase font-semibold text-text-muted px-3 py-1">Actions</div>
+              {actions.map((act) => {
+                const Icon = act.icon;
+                return (
+                  <button
+                    key={act.name}
+                    onClick={act.action}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-text hover:bg-primary/10 hover:text-text group transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1 rounded bg-primary/20 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-xs text-text">{act.name}</div>
+                        <div className="text-[11px] text-text-muted">{act.description}</div>
+                      </div>
+                    </div>
+                    <kbd className="text-[10px] font-mono text-text-muted group-hover:text-text">
+                      {act.shortcut}
+                    </kbd>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Navigation Pages */}
           {pages.length > 0 && (
             <div>

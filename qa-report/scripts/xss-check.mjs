@@ -1,0 +1,16 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+let dialogs = 0;
+page.on('dialog', async d => { dialogs++; await d.dismiss(); });
+const errs = [];
+page.on('pageerror', e => errs.push(e.message));
+await page.goto('http://localhost:5173/issues', { waitUntil: 'networkidle' });
+await page.waitForTimeout(1000);
+const body = await page.content();
+const imgInjected = body.includes('<img src=x onerror=alert(1)>');
+const imgRawTag = await page.locator('img[src="x"]').count();
+const scriptTag = await page.locator('script:not([src])').evaluateAll(els => els.filter(e => e.textContent.includes('alert(2)')).length).catch(() => 'n/a');
+console.log(JSON.stringify({ dialogs, imgLiteralShown: imgInjected, liveImgTags: imgRawTag, injectedScripts: scriptTag, pageErrors: errs }, null, 2));
+await page.screenshot({ path: 'qa-report/evidence/xss-issues-dark-1920.png' });
+await browser.close();

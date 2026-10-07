@@ -28,64 +28,136 @@ model Server {
   notes        String?
   tags         String[]  @default([])
   customValues Json?
+  archivedAt   DateTime?
+  archivedBy   String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   backends     Backend[]
+  ports        Port[]
 
+  @@index([archivedAt])
   @@map("servers")
 }
 
 model Port {
-  id           String      @id @default(uuid())
-  port         Int         @unique
-  layer        String      @default("http") // "http" | "stream"
-  protocol     String      @default("HTTP") // "HTTP" | "HTTPS" | "TCP"
-  purpose      String?
-  processName  String?
-  pid          Int?
-  listenAddress String?    // "0.0.0.0", "127.0.0.1", "::"
-  isPublic     Boolean     @default(true)
-  isExpected   Boolean     @default(true)
-  status       String      @default("unknown") // "up" | "down" | "slow" | "unknown"
-  latencyMs    Float?
-  lastCheckedAt DateTime?
-  lastSeenUpAt DateTime?
-  tags         String[]    @default([])
-  notes        String?
-  customValues Json?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id              String         @id @default(uuid())
+  port            Int
+  serverId        String?
+  server          Server?        @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  layer           String         @default("http") // "http" | "stream"
+  protocol        String         @default("HTTP") // "HTTP" | "HTTPS" | "TCP" | "UDP"
+  purpose         String?
+  processName     String?
+  pid             Int?
+  listenAddress   String?        // "0.0.0.0", "127.0.0.1", "::"
+  expectedBind    String?
+  isPublic        Boolean        @default(true)
+  isExpected      Boolean        @default(true)
+  isDocumented    Boolean        @default(true)
+  lifecycle       String         @default("active") // "planned" | "reserved" | "active" | "maintenance" | "deprecated" | "archived"
+  lifecycleReason String?
+  targetDate      DateTime?
+  owner           String?
+  maintenanceFrom DateTime?
+  maintenanceTo   DateTime?
+  archivedAt      DateTime?
+  archivedBy      String?
+  status          String         @default("unknown") // "up" | "down" | "slow" | "unknown"
+  latencyMs       Float?
+  lastCheckedAt   DateTime?
+  lastSeenUpAt    DateTime?
+  tags            String[]       @default([])
+  notes           String?
+  customValues    Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  routes       Route[]
-  issues       Issue[]
+  routes          Route[]
+  issues          Issue[]
+  features        PortFeature[]
 
   @@index([status])
   @@index([layer])
   @@index([protocol])
+  @@index([lifecycle])
+  @@index([archivedAt])
   @@map("ports")
 }
 
-model Backend {
-  id           String      @id @default(uuid())
-  serverId     String?
-  server       Server?     @relation(fields: [serverId], references: [id], onDelete: SetNull)
-  host         String
-  port         Int
-  label        String?
-  notes        String?
-  status       String      @default("unknown") // "up" | "down" | "slow" | "unknown"
-  latencyMs    Float?
-  lastCheckedAt DateTime?
-  customValues Json?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+model PortFeature {
+  id         String   @id @default(uuid())
+  portId     String
+  port       Port     @relation(fields: [portId], references: [id], onDelete: Cascade)
+  featureKey String
+  enabled    Boolean  @default(true)
+  config     Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  routes       Route[]
+  @@unique([portId, featureKey])
+  @@index([portId])
+  @@index([featureKey])
+  @@map("port_features")
+}
+
+model FeaturePreset {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isBuiltin   Boolean  @default(false)
+  features    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_presets")
+}
+
+model TrashSnapshot {
+  id         String   @id @default(uuid())
+  entityType String   // "port" | "route" | "backend" | "server"
+  entityId   String
+  entityName String
+  data       Json
+  deletedBy  String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("trash_snapshots")
+}
+
+model RegistryFeatureSetting {
+  key             String   @id
+  globallyEnabled Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+
+  @@map("registry_feature_settings")
+}
+
+model Backend {
+  id            String      @id @default(uuid())
+  serverId      String?
+  server        Server?     @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  host          String
+  port          Int
+  label         String?
+  notes         String?
+  status        String      @default("unknown") // "up" | "down" | "slow" | "unknown"
+  latencyMs     Float?
+  lastCheckedAt DateTime?
+  customValues  Json?
+  archivedAt    DateTime?
+  archivedBy    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  routes        Route[]
 
   @@unique([host, port])
   @@index([host])
   @@index([status])
+  @@index([archivedAt])
   @@map("backends")
 }
 
@@ -128,6 +200,8 @@ model Route {
   notes        String?
   flags        Json?
   customValues Json?
+  archivedAt   DateTime?
+  archivedBy   String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -137,6 +211,7 @@ model Route {
   @@index([portNum])
   @@index([action])
   @@index([targetType])
+  @@index([archivedAt])
   @@map("routes")
 }
 

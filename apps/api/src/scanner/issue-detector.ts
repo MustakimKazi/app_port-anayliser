@@ -4,7 +4,7 @@ import { CertificateInfo } from './cert-checker.js';
 
 export class IssueDetector {
   /**
-   * Evaluates system state against health and security rules.
+   * Evaluates system state against health, security, and lifecycle rules.
    * Creates or resolves auto-detected issues.
    */
   async evaluate(
@@ -14,12 +14,19 @@ export class IssueDetector {
   ) {
     const activeAutoKeys = new Set<string>();
 
-    // 1. Check for ports in DB that are DOWN (not listening on host)
     const dbPorts = await prisma.port.findMany({
-      include: { routes: true }
+      include: { routes: { where: { archivedAt: null } } }
     });
 
+    const now = new Date();
+
+    // 1. Check for ports in DB that are DOWN (not listening on host)
+    // IMPORTANT: Planned, reserved, maintenance, and archived ports NEVER create DOWN alerts!
     for (const p of dbPorts) {
+      if (p.lifecycle === 'planned' || p.lifecycle === 'reserved' || p.lifecycle === 'archived' || p.lifecycle === 'maintenance') {
+        continue;
+      }
+
       const isListening = listeningPorts.has(p.port);
       if (!isListening && p.isExpected) {
         const autoKey = `auto-port-down-${p.port}`;
@@ -47,11 +54,36 @@ export class IssueDetector {
       }
     }
 
-    // 2. Check for Undocumented listening ports (rogue ports on host not in PortWatch DB)
-    const documentedPortNumbers = new Set(dbPorts.map(p => p.port));
+    // 2. Check for Undocumented listening ports (rogue ports on host not in PortWatch DB or archived)
+    const activeDocPortsMap = new Map(dbPorts.filter((p) => p.lifecycle !== 'archived').map((p) => [p.port, p]));
+    const archivedPortsMap = new Map(dbPorts.filter((p) => p.lifecycle === 'archived').map((p) => [p.port, p]));
+
     for (const [portNum, info] of listeningPorts.entries()) {
-      // Ignore ephemeral/high ports and internal dynamic ports if needed
-      if (!documentedPortNumbers.has(portNum)) {
+      if (archivedPortsMap.has(portNum)) {
+        // Port is archived in PortWatch but STILL listening on the host!
+        const autoKey = `auto-archived-listening-${portNum}`;
+        activeAutoKeys.add(autoKey);
+
+        await prisma.issue.upsert({
+          where: { autoKey },
+          update: {
+            status: 'open',
+            resolvedAt: null,
+            observed: `Port ${portNum} is archived in PortWatch documentation but is STILL actively listening (${info.bindAddress}) under process '${info.processName || 'unknown'}' (PID: ${info.pid || '?'}).`
+          },
+          create: {
+            autoKey,
+            title: `Port ${portNum} is archived but still listening on the server`,
+            priority: 'Medium',
+            observed: `Port ${portNum} is archived in PortWatch documentation but is STILL actively listening (${info.bindAddress}) under process '${info.processName || 'unknown'}' (PID: ${info.pid || '?'}).`,
+            recommendation: `Stop the running service on the host if no longer needed, or restore the port documentation in PortWatch.`,
+            status: 'open',
+            source: 'auto-detected',
+            relatedPortId: archivedPortsMap.get(portNum)?.id
+          }
+        });
+      } else if (!activeDocPortsMap.has(portNum)) {
+        // Completely undocumented port
         const autoKey = `auto-port-undocumented-${portNum}`;
         activeAutoKeys.add(autoKey);
 
@@ -60,14 +92,14 @@ export class IssueDetector {
           update: {
             status: 'open',
             resolvedAt: null,
-            observed: `Port ${portNum} is actively listening (${info.bindAddress}) under process '${info.processName || 'unknown'}' (PID: ${info.pid || '?'}) but is not documented.`,
+            observed: `Port ${portNum} is actively listening (${info.bindAddress}) under process '${info.processName || 'unknown'}' (PID: ${info.pid || '?'}) but is not documented.`
           },
           create: {
             autoKey,
             title: `Undocumented listening port ${portNum}`,
             priority: 'Medium',
             observed: `Port ${portNum} is actively listening (${info.bindAddress}) under process '${info.processName || 'unknown'}' (PID: ${info.pid || '?'}) but is not documented.`,
-            recommendation: `Run: sudo ss -tlnp | grep :${portNum} to identify the application and document or close it.`,
+            recommendation: `Run: sudo ss -tlnp | grep :${portNum} to identify the application and add it to documentation or close it.`,
             status: 'open',
             source: 'auto-detected'
           }
@@ -75,10 +107,97 @@ export class IssueDetector {
       }
     }
 
-    // 3. Database ports exposed publicly (Redis 7001-7003, Mongo 60007-60009, 3306, 5432, etc.)
+    // 3. Planned / Reserved port found LISTENING on host
+    for (const p of dbPorts) {
+      if ((p.lifecycle === 'planned' || p.lifecycle === 'reserved') && listeningPorts.has(p.port)) {
+        const info = listeningPorts.get(p.port)!;
+        const autoKey = `auto-planned-listening-${p.port}`;
+        activeAutoKeys.add(autoKey);
+
+        await prisma.issue.upsert({
+          where: { autoKey },
+          update: {
+            status: 'open',
+            resolvedAt: null,
+            observed: `Port ${p.port} is marked as ${p.lifecycle} (${p.purpose || 'no purpose'}) and is now listening (${info.bindAddress}) under process '${info.processName || 'unknown'}' (PID: ${info.pid || '?'}).`,
+            relatedPortId: p.id
+          },
+          create: {
+            autoKey,
+            title: `Port ${p.port} is ${p.lifecycle} and now listening`,
+            priority: 'Info',
+            observed: `Port ${p.port} is marked as ${p.lifecycle} (${p.purpose || 'no purpose'}) and is now listening (${info.bindAddress}) under process '${info.processName || 'unknown'}' (PID: ${info.pid || '?'}).`,
+            recommendation: `Port ${p.port} is ${p.lifecycle} and now listening. Mark active?`,
+            status: 'open',
+            source: 'auto-detected',
+            relatedPortId: p.id
+          }
+        });
+      }
+    }
+
+    // 4. Overdue planned ports (target date in the past)
+    for (const p of dbPorts) {
+      if (p.lifecycle === 'planned' && p.targetDate && new Date(p.targetDate) < now) {
+        const autoKey = `auto-planned-overdue-${p.port}`;
+        activeAutoKeys.add(autoKey);
+
+        const targetFormatted = new Date(p.targetDate).toISOString().split('T')[0];
+        await prisma.issue.upsert({
+          where: { autoKey },
+          update: {
+            status: 'open',
+            resolvedAt: null,
+            observed: `Planned port ${p.port} target date was ${targetFormatted} (${p.owner || 'unassigned'}) and is now overdue.`,
+            relatedPortId: p.id
+          },
+          create: {
+            autoKey,
+            title: `Planned port ${p.port} is overdue (${targetFormatted})`,
+            priority: 'Medium',
+            observed: `Planned port ${p.port} target date was ${targetFormatted} (${p.owner || 'unassigned'}) and is now overdue.`,
+            recommendation: `Confirm project deployment status: mark port ${p.port} active or postpone the target date.`,
+            status: 'open',
+            source: 'auto-detected',
+            relatedPortId: p.id
+          }
+        });
+      }
+    }
+
+    // 5. Routes attached to Deprecated port
+    for (const p of dbPorts) {
+      if (p.lifecycle === 'deprecated' && p.routes.length > 0) {
+        const autoKey = `auto-deprecated-port-routes-${p.port}`;
+        activeAutoKeys.add(autoKey);
+
+        const routeDomains = p.routes.map((r) => r.domain).join(', ');
+        await prisma.issue.upsert({
+          where: { autoKey },
+          update: {
+            status: 'open',
+            resolvedAt: null,
+            observed: `Deprecated port ${p.port} has ${p.routes.length} active routes attached (${routeDomains}).`,
+            relatedPortId: p.id
+          },
+          create: {
+            autoKey,
+            title: `Active routes attached to deprecated port ${p.port}`,
+            priority: 'Medium',
+            observed: `Deprecated port ${p.port} has ${p.routes.length} active routes attached (${routeDomains}).`,
+            recommendation: `Migrate all routes off deprecated port ${p.port} before shutting down the service.`,
+            status: 'open',
+            source: 'auto-detected',
+            relatedPortId: p.id
+          }
+        });
+      }
+    }
+
+    // 6. Database ports exposed publicly
     const dbPortNumbers = [7001, 7002, 7003, 60007, 60008, 60009, 3306, 5432, 27017, 6379];
     for (const p of dbPorts) {
-      if (dbPortNumbers.includes(p.port) && p.isPublic) {
+      if (p.lifecycle !== 'archived' && dbPortNumbers.includes(p.port) && p.isPublic) {
         const autoKey = `auto-db-exposed-${p.port}`;
         activeAutoKeys.add(autoKey);
 
@@ -103,42 +222,14 @@ export class IssueDetector {
       }
     }
 
-    // 4. Public plain-HTTP ports (no TLS on internet-facing web ports)
-    const plainHttpPorts = [10080, 10081, 10180, 10181, 28096];
-    for (const p of dbPorts) {
-      if (plainHttpPorts.includes(p.port) && p.protocol === 'HTTP' && p.isPublic) {
-        const autoKey = `auto-plain-http-${p.port}`;
-        activeAutoKeys.add(autoKey);
-
-        await prisma.issue.upsert({
-          where: { autoKey },
-          update: {
-            status: 'open',
-            resolvedAt: null,
-            relatedPortId: p.id
-          },
-          create: {
-            autoKey,
-            title: `Public plain-HTTP port ${p.port} without TLS`,
-            priority: 'Medium',
-            observed: `Port ${p.port} serves unencrypted HTTP without SSL configuration in Nginx.`,
-            recommendation: `Confirm if TLS termination is handled by an upstream CDN or add SSL certificates.`,
-            status: 'open',
-            source: 'auto-detected',
-            relatedPortId: p.id
-          }
-        });
-      }
-    }
-
-    // 5. Duplicate local ports / conflict detection (8080 and 9000 check)
-    // Check routes proxying to same backend host:port from different apps
+    // 7. Duplicate local ports / conflict detection (8080 and 9000 check)
     const backends = await prisma.backend.findMany({
-      include: { routes: true }
+      where: { archivedAt: null },
+      include: { routes: { where: { archivedAt: null } } }
     });
     for (const b of backends) {
       if (b.routes.length > 1 && (b.port === 8080 || b.port === 9000 || b.host === '127.0.0.1' || b.host === 'localhost')) {
-        const domains = Array.from(new Set(b.routes.map(r => r.domain)));
+        const domains = Array.from(new Set(b.routes.map((r) => r.domain)));
         if (domains.length > 1) {
           const autoKey = `auto-port-conflict-${b.host}-${b.port}`;
           activeAutoKeys.add(autoKey);
@@ -164,7 +255,7 @@ export class IssueDetector {
       }
     }
 
-    // 6. Expiring Certificates check
+    // 8. Expiring Certificates check
     for (const c of certs) {
       if (c.status === 'critical' || c.status === 'expiring_soon' || c.status === 'expired') {
         const autoKey = `auto-cert-expiring-${c.domain}-${c.port}`;
@@ -192,7 +283,7 @@ export class IssueDetector {
       }
     }
 
-    // 7. Auto-resolve issues that are no longer active
+    // 9. Auto-resolve issues that are no longer active
     const openAutoIssues = await prisma.issue.findMany({
       where: {
         source: 'auto-detected',

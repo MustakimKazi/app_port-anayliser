@@ -1,21 +1,35 @@
 export type StatusType = 'up' | 'down' | 'slow' | 'unknown';
 export type LayerType = 'http' | 'stream';
-export type ProtocolType = 'HTTP' | 'HTTPS' | 'TCP';
+export type ProtocolType = 'HTTP' | 'HTTPS' | 'TCP' | 'UDP';
 export type ActionType = 'Proxy' | 'Static' | 'Redirect' | 'Return' | 'Status';
 export type PriorityType = 'High' | 'Medium' | 'Low' | 'Info';
 export type IssueStatus = 'open' | 'acknowledged' | 'resolved' | 'ignored';
+export type LifecycleType = 'planned' | 'reserved' | 'active' | 'maintenance' | 'deprecated' | 'archived';
 
 export interface Port {
   id: string;
   port: number;
+  serverId?: string | null;
+  serverName?: string | null;
+  server?: Server | null;
   layer: LayerType;
   protocol: ProtocolType;
   purpose: string | null;
   processName: string | null;
   pid: number | null;
   listenAddress: string | null;
+  expectedBind?: string | null;
   isPublic: boolean;
   isExpected: boolean;
+  isDocumented?: boolean;
+  lifecycle: LifecycleType;
+  lifecycleReason?: string | null;
+  targetDate?: string | null;
+  owner?: string | null;
+  maintenanceFrom?: string | null;
+  maintenanceTo?: string | null;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
   status: StatusType;
   latencyMs: number | null;
   lastCheckedAt: string | null;
@@ -30,6 +44,53 @@ export interface Port {
   hasHighIssue: boolean;
   routes?: Route[];
   issues?: Issue[];
+  features?: PortFeature[];
+}
+
+export interface PortFeature {
+  id?: string;
+  portId?: string;
+  featureKey: string;
+  enabled: boolean;
+  config?: any;
+}
+
+export interface FeatureItem {
+  key: string;
+  label: string;
+  description: string;
+  settingsSchema: any;
+  defaultConfig: any;
+  applicableLayers?: string[];
+  applicableProtocols?: string[];
+  enabled: boolean;
+  config: any;
+  globallyEnabled: boolean;
+  usedCount?: number;
+}
+
+export interface FeaturePreset {
+  id: string;
+  name: string;
+  description: string | null;
+  isBuiltin: boolean;
+  features: Record<string, { enabled: boolean; config?: any }>;
+}
+
+export interface ImpactPreview {
+  port?: { id: string; port: number; lifecycle: string; purpose: string | null };
+  routesCount: number;
+  routes: Route[];
+  domainsCount: number;
+  domains: string[];
+  orphanedBackendsCount?: number;
+  orphanedBackends?: Backend[];
+  issuesCount: number;
+  issues: Issue[];
+  historyChecksCount?: number;
+  isListening?: boolean;
+  warningLevel: 'safe' | 'caution' | 'dangerous';
+  notice?: string;
 }
 
 export interface Route {
@@ -62,6 +123,8 @@ export interface Route {
     [key: string]: any;
   } | null;
   customValues?: Record<string, any> | null;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
 }
 
 export interface Backend {
@@ -77,6 +140,8 @@ export interface Backend {
   lastCheckedAt: string | null;
   customValues?: Record<string, any> | null;
   routes?: Route[];
+  archivedAt?: string | null;
+  archivedBy?: string | null;
 }
 
 export interface Server {
@@ -89,6 +154,9 @@ export interface Server {
   tags: string[];
   customValues?: Record<string, any> | null;
   backends?: Backend[];
+  ports?: Port[];
+  archivedAt?: string | null;
+  archivedBy?: string | null;
 }
 
 export interface ConfigFile {
@@ -192,6 +260,14 @@ export interface OverviewData {
     downPorts: number;
     slowPorts: number;
     unknownPorts: number;
+    lifecycles: {
+      planned: number;
+      reserved: number;
+      active: number;
+      maintenance: number;
+      deprecated: number;
+      archived: number;
+    };
     openIssues: {
       total: number;
       high: number;
@@ -213,6 +289,8 @@ export interface OverviewData {
     highIssues: Issue[];
     downPorts: Port[];
     expiringCerts: CertificateInfo[];
+    overduePlanned?: Port[];
+    listeningPlanned?: Port[];
   };
   recentEvents: StatusEvent[];
   scanner: {

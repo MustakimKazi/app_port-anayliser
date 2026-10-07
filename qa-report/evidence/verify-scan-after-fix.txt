@@ -1,0 +1,19 @@
+Live listening ports on this host: 59
+Documented (non-archived) ports:    28
+Matches: 28 of 28
+
+[rule] status vocabulary
+  ok: only up|down|slow|unknown used
+  note: spec-required states down_refused / unreachable do not exist in the schema
+
+[rule] DOWN ports must show no bind/process/latency
+  ok: no stale bind on non-up ports
+  ok: no latency on non-up ports
+
+[rule] port_checks must not store latency for failed checks
+  ok
+
+[rule] $variable targets must never be probed (status unknown, no latency)
+  routes with $variable/upstream targets: 17
+  $-variable backends: 1 (existence is fine; probing is not)
+  ok: no $variable backend was probed (all status=unknown, latency=null)

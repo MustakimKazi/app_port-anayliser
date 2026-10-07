@@ -1,0 +1,14 @@
+api-auth tests against http://localhost:3100
+
+  PASS  unauthenticated GET /api/ports -> 401
+  PASS  x-role header is ignored -> 401
+  PASS  forged cookie -> 401
+  PASS  unauthenticated GET /api/settings -> 401
+  PASS  POST /api/auth/login reachable -> 400/401
+  PASS  login rate limit returns 429 within 12 attempts
+  SKIP  viewer role checks (set VIEWER_COOKIE to enable)
+  PASS  invalid issue body -> 400 without stack trace
+  PASS  CORS does not reflect arbitrary Origin
+  PASS  security headers: x-content-type-options=nosniff
+
+ALL PASS

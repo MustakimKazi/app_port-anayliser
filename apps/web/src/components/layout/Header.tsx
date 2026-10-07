@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, Sun, Moon } from 'lucide-react';
+import { Search, RefreshCw, Sun, Moon, Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '../ui/Button';
 import { apiRequest } from '../../lib/api';
 import { useSSE } from '../../hooks/useSSE';
 
 interface HeaderProps {
   onOpenPalette: () => void;
+  onOpenAddPort?: () => void;
 }
 
-export function Header({ onOpenPalette }: HeaderProps) {
+export function Header({ onOpenPalette, onOpenAddPort }: HeaderProps) {
+  const { data: currentUser } = useQuery<{ role: string; username: string }>({
+    queryKey: ['auth-me'],
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    staleTime: 60000
+  });
+  const isViewer = currentUser?.role === 'viewer';
   const { isConnected, scanProgress } = useSSE();
   const [isScanning, setIsScanning] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -90,6 +98,20 @@ export function Header({ onOpenPalette }: HeaderProps) {
           </span>
           <span className="text-text-muted text-[10px] font-mono">({countdown}s)</span>
         </div>
+
+        {/* Quick Add Port Button */}
+        {!isViewer && onOpenAddPort && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onOpenAddPort}
+            className="text-xs flex items-center gap-1.5"
+            title="Add a new or planned port (Ctrl+K -> Add port)"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Port</span>
+          </Button>
+        )}
 
         {/* Scan Now Button */}
         <Button

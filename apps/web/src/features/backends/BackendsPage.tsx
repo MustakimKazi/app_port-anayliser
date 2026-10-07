@@ -6,7 +6,10 @@ import {
   AlertTriangle,
   Globe,
   Edit2,
-  Layers
+  Layers,
+  Plus,
+  Archive,
+  Trash2
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -14,24 +17,40 @@ import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Backend, Server as ServerType } from '../../types';
+import { AddBackendDialog } from './AddBackendDialog';
+import { AddServerModal, ArchiveServerModal } from './ServerModal';
 
 export function BackendsPage() {
   const queryClient = useQueryClient();
+
+  const { data: currentUser } = useQuery<{ role: string; username: string }>({
+    queryKey: ['auth-me'],
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    staleTime: 60000
+  });
+  const isViewer = currentUser?.role === 'viewer';
+
   const [selectedBackend, setSelectedBackend] = useState<Backend | null>(null);
   const [editingServer, setEditingServer] = useState<ServerType | null>(null);
   const [serverNameInput, setServerNameInput] = useState('');
   const [activeTab, setActiveTab] = useState<'servers' | 'topology' | 'blast'>('servers');
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Modals state
+  const [isAddBackendOpen, setIsAddBackendOpen] = useState(false);
+  const [isAddServerOpen, setIsAddServerOpen] = useState(false);
+  const [serverToArchive, setServerToArchive] = useState<ServerType | null>(null);
 
   // Query Servers
   const { data: servers = [] } = useQuery<ServerType[]>({
-    queryKey: ['servers'],
-    queryFn: () => apiRequest('/servers')
+    queryKey: ['servers', showArchived],
+    queryFn: () => apiRequest(`/servers${showArchived ? '?showArchived=true' : ''}`)
   });
 
   // Query Backends
   const { data: backends = [] } = useQuery<Backend[]>({
-    queryKey: ['backends'],
-    queryFn: () => apiRequest('/backends')
+    queryKey: ['backends', showArchived],
+    queryFn: () => apiRequest(`/backends${showArchived ? '?showArchived=true' : ''}`)
   });
 
   // Query Topology Graph & Blast Radius
@@ -84,38 +103,75 @@ export function BackendsPage() {
           </p>
         </div>
 
-        {/* View Switcher Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-surface border border-border">
-          <button
-            onClick={() => setActiveTab('servers')}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === 'servers'
-                ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-text-muted hover:text-text hover:bg-surface-2'
-            }`}
-          >
-            Server Clusters
-          </button>
-          <button
-            onClick={() => setActiveTab('topology')}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === 'topology'
-                ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-text-muted hover:text-text hover:bg-surface-2'
-            }`}
-          >
-            Dependency Graph
-          </button>
-          <button
-            onClick={() => setActiveTab('blast')}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === 'blast'
-                ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-text-muted hover:text-text hover:bg-surface-2'
-            }`}
-          >
-            Blast Radius Analysis
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Action Buttons */}
+          {!isViewer && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsAddServerOpen(true)}
+                className="text-xs flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Server</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsAddBackendOpen(true)}
+                className="text-xs flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Backend</span>
+              </Button>
+            </div>
+          )}
+
+          {/* Show Archived Toggle */}
+          <label className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs text-text cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="rounded border-border text-primary focus:ring-0"
+            />
+            <span className="text-text-muted">Show Archived</span>
+          </label>
+
+          {/* View Switcher Tabs */}
+          <div className="flex items-center gap-1.5 p-1 rounded-lg bg-surface border border-border">
+            <button
+              onClick={() => setActiveTab('servers')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'servers'
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'text-text-muted hover:text-text hover:bg-surface-2'
+              }`}
+            >
+              Server Clusters
+            </button>
+            <button
+              onClick={() => setActiveTab('topology')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'topology'
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'text-text-muted hover:text-text hover:bg-surface-2'
+              }`}
+            >
+              Dependency Graph
+            </button>
+            <button
+              onClick={() => setActiveTab('blast')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'blast'
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'text-text-muted hover:text-text hover:bg-surface-2'
+              }`}
+            >
+              Blast Radius Analysis
+            </button>
+          </div>
         </div>
       </div>
 
@@ -138,13 +194,24 @@ export function BackendsPage() {
                         <div>
                           <div className="font-bold text-sm text-text flex items-center gap-2">
                             <span>{server.name}</span>
-                            <button
-                              onClick={() => handleOpenRename(server)}
-                              className="text-text-muted hover:text-text transition-colors"
-                              title="Rename server"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
+                            {!isViewer && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleOpenRename(server)}
+                                  className="text-text-muted hover:text-text transition-colors p-0.5"
+                                  title="Rename server"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setServerToArchive(server)}
+                                  className="text-text-muted hover:text-status-down transition-colors p-0.5"
+                                  title="Archive server (safe dependency check)"
+                                >
+                                  <Archive className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                           <span className="text-[11px] font-mono text-primary">{server.host}</span>
                         </div>
@@ -424,6 +491,24 @@ export function BackendsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Add Backend Dialog */}
+      <AddBackendDialog
+        isOpen={isAddBackendOpen}
+        onClose={() => setIsAddBackendOpen(false)}
+      />
+
+      {/* Add Server Modal */}
+      <AddServerModal
+        isOpen={isAddServerOpen}
+        onClose={() => setIsAddServerOpen(false)}
+      />
+
+      {/* Archive Server Modal with Safe Dependency Check */}
+      <ArchiveServerModal
+        server={serverToArchive}
+        onClose={() => setServerToArchive(null)}
+      />
     </div>
   );
 }

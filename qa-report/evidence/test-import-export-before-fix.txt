@@ -1,0 +1,11 @@
+import/export tests against http://localhost:3100
+
+  FAIL  unknown export entity -> 400 — got 200
+  FAIL  ports CSV starts with UTF-8 BOM — first char 0x69
+  FAIL  filename contains date AND time — attachment; filename="portwatch-ports-2026-10-07.csv"
+  FAIL  CSV row count matches visible (non-archived) rows (28) — csv lines=35, active=28
+  PASS  no unescaped formula cells in issues CSV
+  FAIL  routes CSV contains flattened relation headers — no dotted relation columns found
+  SKIP  import destruction tests (set IMPORT_TEST=1 on a scratch DB)
+
+5 FAILURE(S)

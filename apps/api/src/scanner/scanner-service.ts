@@ -20,12 +20,12 @@ export class ScannerService {
     console.log(`Starting PortWatch Scanner worker (interval: ${config.scanIntervalSec}s)...`);
     // Run initial scan shortly after startup
     setTimeout(() => {
-      this.runScan().catch(err => console.error('Initial scan failed:', err));
+      this.runScan().catch((err) => console.error('Initial scan failed:', err));
     }, 2000);
 
     // Schedule periodic scans
     this.timer = setInterval(() => {
-      this.runScan().catch(err => console.error('Periodic scan error:', err));
+      this.runScan().catch((err) => console.error('Periodic scan error:', err));
     }, config.scanIntervalSec * 1000);
   }
 
@@ -50,6 +50,8 @@ export class ScannerService {
 
   /**
    * Run a full scan across host listeners, ports, backends, routes, and certs.
+   * Respects port lifecycles (planned, reserved, maintenance, deprecated, archived)
+   * and per-port feature toggles (e.g. tcp_check on/off).
    */
   async runScan(): Promise<{
     durationMs: number;
@@ -73,12 +75,65 @@ export class ScannerService {
 
       // Step 2: Probe Ports
       sseManager.broadcast('scan_progress', { stage: 'checking_ports', progress: 35 });
-      const dbPorts = await this.prisma.port.findMany();
+      const dbPorts = await this.prisma.port.findMany({
+        include: { features: true }
+      });
       const portLimit = pLimit(config.concurrencyLimit);
+      const now = new Date();
+
+      let activeScannedCount = 0;
 
       await Promise.all(
-        dbPorts.map(p =>
+        dbPorts.map((p) =>
           portLimit(async () => {
+            // 1. Archived ports are NEVER scanned
+            if (p.lifecycle === 'archived' || p.archivedAt) {
+              return;
+            }
+
+            // 2. Planned / Reserved ports are NOT scanned and NEVER create DOWN alerts
+            if (p.lifecycle === 'planned' || p.lifecycle === 'reserved') {
+              return;
+            }
+
+            // 3. Maintenance ports: check if maintenance window has ended automatically
+            let currentLifecycle = p.lifecycle;
+            if (currentLifecycle === 'maintenance') {
+              if (p.maintenanceTo && now > new Date(p.maintenanceTo)) {
+                currentLifecycle = 'active';
+                await this.prisma.port.update({
+                  where: { id: p.id },
+                  data: {
+                    lifecycle: 'active',
+                    lifecycleReason: 'Maintenance window completed automatically',
+                    maintenanceFrom: null,
+                    maintenanceTo: null
+                  }
+                });
+                await this.prisma.statusEvent.create({
+                  data: {
+                    targetType: 'port',
+                    targetId: p.id,
+                    targetName: `Port ${p.port}`,
+                    fromStatus: 'maintenance',
+                    toStatus: 'active',
+                    details: { reason: 'Maintenance window expired automatically' }
+                  }
+                });
+              }
+            }
+
+            // 4. Per-port feature check: TCP check feature toggle
+            const tcpFeat = p.features.find((f) => f.featureKey === 'tcp_check');
+            const tcpEnabled = tcpFeat !== undefined ? tcpFeat.enabled : true;
+
+            if (!tcpEnabled) {
+              // TCP check is disabled for this port, skip probe
+              return;
+            }
+
+            activeScannedCount++;
+
             const hostInfo = listeningMap.get(p.port);
             let status: 'up' | 'down' | 'slow' = 'down';
             let latencyMs: number | null = null;
@@ -106,7 +161,6 @@ export class ScannerService {
             }
 
             const oldStatus = p.status;
-            const now = new Date();
 
             await this.prisma.port.update({
               where: { id: p.id },
@@ -137,7 +191,15 @@ export class ScannerService {
 
             // Write status event if status changed
             if (oldStatus !== status && oldStatus !== 'unknown') {
-              await this.recordStatusEvent('port', p.id, `Port ${p.port}`, oldStatus, status);
+              const isMaintenance = currentLifecycle === 'maintenance';
+              await this.recordStatusEvent(
+                'port',
+                p.id,
+                `Port ${p.port}`,
+                oldStatus,
+                status,
+                isMaintenance // mute alerts if in maintenance
+              );
             }
           })
         )
@@ -145,11 +207,13 @@ export class ScannerService {
 
       // Step 3: Probe Backends
       sseManager.broadcast('scan_progress', { stage: 'checking_backends', progress: 65 });
-      const dbBackends = await this.prisma.backend.findMany();
+      const dbBackends = await this.prisma.backend.findMany({
+        where: { archivedAt: null }
+      });
       const backendLimit = pLimit(config.concurrencyLimit);
 
       await Promise.all(
-        dbBackends.map(b =>
+        dbBackends.map((b) =>
           backendLimit(async () => {
             const hostToProbe = b.host === 'localhost' ? '127.0.0.1' : b.host;
             const res = await tcpChecker.check(
@@ -160,7 +224,6 @@ export class ScannerService {
             );
 
             const oldStatus = b.status;
-            const now = new Date();
 
             await this.prisma.backend.update({
               where: { id: b.id },
@@ -185,7 +248,7 @@ export class ScannerService {
             });
 
             if (oldStatus !== res.status && oldStatus !== 'unknown') {
-              await this.recordStatusEvent('backend', b.id, `${b.host}:${b.port}`, oldStatus, res.status);
+              await this.recordStatusEvent('backend', b.id, `${b.host}:${b.port}`, oldStatus, res.status, false);
             }
           })
         )
@@ -196,6 +259,7 @@ export class ScannerService {
       const httpsRoutes = await this.prisma.route.findMany({
         where: {
           protocol: 'HTTPS',
+          archivedAt: null,
           domain: { not: '(catch-all)' }
         },
         distinct: ['domain']
@@ -204,7 +268,7 @@ export class ScannerService {
       const certResults: CertificateInfo[] = [];
       const certLimit = pLimit(10);
       await Promise.all(
-        httpsRoutes.slice(0, 20).map(r =>
+        httpsRoutes.slice(0, 20).map((r) =>
           certLimit(async () => {
             try {
               const cert = await certChecker.check(r.domain, r.portNum || 443, 3000);
@@ -233,14 +297,14 @@ export class ScannerService {
 
       sseManager.broadcast('scan_complete', {
         durationMs,
-        portsChecked: dbPorts.length,
+        portsChecked: activeScannedCount,
         backendsChecked: dbBackends.length,
         timestamp: this.lastScanTime
       });
 
       return {
         durationMs,
-        portsChecked: dbPorts.length,
+        portsChecked: activeScannedCount,
         backendsChecked: dbBackends.length,
         issuesFound: await this.prisma.issue.count({ where: { status: 'open' } })
       };
@@ -290,7 +354,8 @@ export class ScannerService {
       });
 
       if (oldStatus !== tcpRes.status) {
-        await this.recordStatusEvent('port', port.id, `Port ${port.port}`, oldStatus, tcpRes.status);
+        const isMaintenance = port.lifecycle === 'maintenance';
+        await this.recordStatusEvent('port', port.id, `Port ${port.port}`, oldStatus, tcpRes.status, isMaintenance);
       }
 
       return { port: port.port, ...tcpRes };
@@ -332,7 +397,7 @@ export class ScannerService {
       });
 
       if (oldStatus !== tcpRes.status) {
-        await this.recordStatusEvent('backend', backend.id, `${backend.host}:${backend.port}`, oldStatus, tcpRes.status);
+        await this.recordStatusEvent('backend', backend.id, `${backend.host}:${backend.port}`, oldStatus, tcpRes.status, false);
       }
 
       return { host: backend.host, port: backend.port, ...tcpRes };
@@ -344,7 +409,8 @@ export class ScannerService {
     targetId: string,
     targetName: string,
     fromStatus: string,
-    toStatus: string
+    toStatus: string,
+    muteAlerts: boolean = false
   ) {
     const event = await this.prisma.statusEvent.create({
       data: {
@@ -367,8 +433,10 @@ export class ScannerService {
       at: event.at
     });
 
-    // Check alert rules
-    await this.evaluateAlert(targetName, fromStatus, toStatus);
+    // Evaluate alerts if not muted
+    if (!muteAlerts) {
+      await this.evaluateAlert(targetName, fromStatus, toStatus);
+    }
   }
 
   private async evaluateAlert(targetName: string, fromStatus: string, toStatus: string) {

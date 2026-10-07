@@ -1,0 +1,125 @@
+--- a/apps/api/src/modules/ports/ports.routes.ts
++++ b/apps/api/src/modules/ports/ports.routes.ts
+@@ -37,8 +37,10 @@
+   showArchived: z.string().optional(),
+   server: z.string().optional(),
+   sort: z.string().optional(),
+-  page: z.coerce.number().default(1),
+-  limit: z.coerce.number().default(50)
++  // Bounded & finite: ?page=0 / ?limit=Infinity used to reach Prisma/Postgres
++  // as-is and produced HTTP 500
++  page: z.coerce.number().int().min(1).max(100_000).default(1),
++  limit: z.coerce.number().int().min(1).max(1000).default(50)
+ });
+ 
+ export async function portsRoutes(fastify: FastifyInstance, opts: { scanner: ScannerService }) {
+@@ -46,7 +48,10 @@
+   fastify.get('/ports', async (request: FastifyRequest, reply: FastifyReply) => {
+     const parse = PortFilterSchema.safeParse(request.query);
+     if (!parse.success) {
+-      return reply.status(400).send({ error: parse.error });
++      return reply.status(400).send({
++        error: 'Invalid request parameters',
++        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
++      });
+     }
+ 
+     const {
+--- a/apps/api/src/modules/routes/routes.routes.ts
++++ b/apps/api/src/modules/routes/routes.routes.ts
+@@ -26,15 +26,18 @@
+   showArchived: z.string().optional(),
+   q: z.string().optional(),
+   sort: z.string().optional(),
+-  page: z.coerce.number().default(1),
+-  limit: z.coerce.number().default(100)
++  page: z.coerce.number().int().min(1).max(100_000).default(1),
++  limit: z.coerce.number().int().min(1).max(1000).default(100)
+ });
+ 
+ export async function routesRoutes(fastify: FastifyInstance) {
+   // GET /api/routes - Filterable list of routes
+   fastify.get('/routes', async (request: FastifyRequest, reply: FastifyReply) => {
+     const parse = RouteFilterSchema.safeParse(request.query);
+-    if (!parse.success) return reply.status(400).send({ error: parse.error });
++    if (!parse.success) return reply.status(400).send({
++        error: 'Invalid request parameters',
++        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
++      });
+ 
+     const {
+       domain,
+--- a/apps/api/src/modules/issues/issues.routes.ts
++++ b/apps/api/src/modules/issues/issues.routes.ts
+@@ -10,11 +10,26 @@
+   q: z.string().optional()
+ });
+ 
++// Validated body: an unvalidated body used to reach Prisma directly and leak
++// the raw PrismaClientValidationError (stack + file paths) to the client
++const IssueCreateSchema = z.object({
++  title: z.string().trim().min(1).max(500),
++  priority: z.string().max(20).optional(),
++  observed: z.string().max(20_000).optional(),
++  recommendation: z.string().max(20_000).optional(),
++  relatedPortId: z.string().nullable().optional(),
++  relatedRouteId: z.string().nullable().optional(),
++  assignee: z.string().max(100).nullable().optional()
++});
++
+ export async function issuesRoutes(fastify: FastifyInstance) {
+   // GET /api/issues
+   fastify.get('/issues', async (request: FastifyRequest, reply: FastifyReply) => {
+     const parse = IssueFilterSchema.safeParse(request.query);
+-    if (!parse.success) return reply.status(400).send({ error: parse.error });
++    if (!parse.success) return reply.status(400).send({
++        error: 'Invalid request parameters',
++        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
++      });
+ 
+     const { priority, status, source, relatedPortId, q } = parse.data;
+     const where: any = {};
+@@ -50,7 +65,14 @@
+ 
+   // POST /api/issues
+   fastify.post('/issues', async (request: FastifyRequest, reply: FastifyReply) => {
+-    const body = request.body as any;
++    const parse = IssueCreateSchema.safeParse(request.body);
++    if (!parse.success) {
++      return reply.status(400).send({
++        error: 'Invalid issue payload',
++        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
++      });
++    }
++    const body = parse.data;
+     const created = await prisma.issue.create({
+       data: {
+         title: body.title,
+--- a/apps/api/src/modules/port-map/port-map.routes.ts
++++ b/apps/api/src/modules/port-map/port-map.routes.ts
+@@ -57,7 +57,10 @@
+   // GET /api/port-map/free - Find free ports in a specific range
+   fastify.get('/port-map/free', async (request: FastifyRequest, reply: FastifyReply) => {
+     const parse = FreePortQuerySchema.safeParse(request.query);
+-    if (!parse.success) return reply.status(400).send({ error: parse.error });
++    if (!parse.success) return reply.status(400).send({
++        error: 'Invalid request parameters',
++        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
++      });
+ 
+     const { range, count } = parse.data;
+     const [minStr, maxStr] = range.split('-');
+--- a/apps/api/src/modules/custom-fields/custom-fields.routes.ts
++++ b/apps/api/src/modules/custom-fields/custom-fields.routes.ts
+@@ -24,7 +24,10 @@
+   // POST /api/custom-fields - Add new custom field
+   fastify.post('/custom-fields', async (request: FastifyRequest, reply: FastifyReply) => {
+     const parse = CustomFieldCreateSchema.safeParse(request.body);
+-    if (!parse.success) return reply.status(400).send({ error: parse.error });
++    if (!parse.success) return reply.status(400).send({
++        error: 'Invalid request parameters',
++        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
++      });
+ 
+     const data = parse.data;
+ 

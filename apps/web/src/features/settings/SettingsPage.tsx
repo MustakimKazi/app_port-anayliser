@@ -17,11 +17,49 @@ import { apiRequest } from '../../lib/api';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { CustomField } from '../../types';
+import { CustomField, FeatureItem, FeaturePreset } from '../../types';
 
 export function SettingsPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'scanner' | 'alerts' | 'custom-fields' | 'import-export' | 'audit'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'alerts' | 'features' | 'custom-fields' | 'import-export' | 'audit'>('scanner');
+
+  const { data: currentUser } = useQuery<{ role: string; username: string }>({
+    queryKey: ['auth-me'],
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    staleTime: 60000
+  });
+  const isViewer = currentUser?.role === 'viewer';
+
+  // Registry features & presets
+  const { data: registryFeatures = [], isLoading: isLoadingFeatures } = useQuery<FeatureItem[]>({
+    queryKey: ['features-registry'],
+    queryFn: () => apiRequest('/features/registry'),
+    enabled: activeTab === 'features'
+  });
+
+  const { data: presets = [], isLoading: isLoadingPresets } = useQuery<FeaturePreset[]>({
+    queryKey: ['feature-presets'],
+    queryFn: () => apiRequest('/feature-presets'),
+    enabled: activeTab === 'features'
+  });
+
+  const toggleGlobalFeatureMutation = useMutation({
+    mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
+      apiRequest(`/features/registry/${key}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled })
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['features-registry'] });
+    }
+  });
+
+  const deletePresetMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/feature-presets/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feature-presets'] });
+    }
+  });
 
   // Scanner settings state
   const { data: settings } = useQuery<any>({
@@ -167,6 +205,14 @@ export function SettingsPage() {
             }`}
           >
             Alerts & Channels
+          </button>
+          <button
+            onClick={() => setActiveTab('features')}
+            className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+              activeTab === 'features' ? 'bg-primary text-on-primary' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            Port Features & Presets
           </button>
           <button
             onClick={() => setActiveTab('custom-fields')}
@@ -346,6 +392,158 @@ export function SettingsPage() {
                     >
                       {rule.isEnabled ? 'ACTIVE' : 'DISABLED'}
                     </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB: PORT FEATURES & PRESETS */}
+      {activeTab === 'features' && (
+        <div className="space-y-6 max-w-5xl">
+          {/* Registry Features Table */}
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <div>
+                <CardTitle>Port Feature Registry (Extensible Engine)</CardTitle>
+                <p className="text-xs text-text-muted mt-1">
+                  Features define how PortWatch inspects, probes, tracks, and alerts on each port. Disabling a feature globally hides it across all ports while preserving existing historical records.
+                </p>
+              </div>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-text">
+                <thead className="bg-surface-2 text-[11px] uppercase text-text-muted border-b border-border">
+                  <tr>
+                    <th className="py-2.5 px-4">Feature</th>
+                    <th className="py-2.5 px-4">Description</th>
+                    <th className="py-2.5 px-4">Applicable To</th>
+                    <th className="py-2.5 px-4 text-center">Used By</th>
+                    <th className="py-2.5 px-4 text-center">Global Status</th>
+                    <th className="py-2.5 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {isLoadingFeatures ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-text-muted">Loading registry features...</td>
+                    </tr>
+                  ) : registryFeatures.map((f) => (
+                    <tr key={f.key} className="hover:bg-surface-2/60 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-text">{f.label}</div>
+                        <div className="font-mono text-[10px] text-text-muted">{f.key}</div>
+                      </td>
+                      <td className="py-3 px-4 text-text-muted max-w-xs">{f.description}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {f.applicableLayers?.map((layer) => (
+                            <span key={layer} className="px-1.5 py-0.5 rounded text-[10px] uppercase font-mono bg-surface-2 border border-border text-text-muted">
+                              {layer}
+                            </span>
+                          ))}
+                          {f.applicableProtocols?.map((proto) => (
+                            <span key={proto} className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-primary/10 border border-primary/20 text-primary">
+                              {proto}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-center font-mono font-medium text-text">
+                        {f.usedCount ?? 0} {f.usedCount === 1 ? 'port' : 'ports'}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            f.globallyEnabled
+                              ? 'bg-status-up/15 text-status-up border border-status-up/30'
+                              : 'bg-surface-2 text-text-muted border border-border'
+                          }`}
+                        >
+                          {f.globallyEnabled ? 'ENABLED' : 'MUTED / DISABLED'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {!isViewer ? (
+                          <button
+                            onClick={() =>
+                              toggleGlobalFeatureMutation.mutate({
+                                key: f.key,
+                                enabled: !f.globallyEnabled
+                              })
+                            }
+                            disabled={toggleGlobalFeatureMutation.isPending}
+                            className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${
+                              f.globallyEnabled
+                                ? 'bg-surface-2 border-border text-text hover:bg-surface hover:text-status-down'
+                                : 'bg-primary border-primary text-on-primary hover:opacity-90'
+                            }`}
+                          >
+                            {f.globallyEnabled ? 'Disable Globally' : 'Enable Globally'}
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-text-muted">Read-only</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Feature Presets Section */}
+          <Card className="p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-base font-semibold text-text">Feature Presets (Port Configuration Templates)</h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Standard templates for quickly outfitting ports. You can save your own preset directly from any port's feature drawer.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {isLoadingPresets ? (
+                <div className="col-span-2 py-8 text-center text-text-muted text-xs">Loading presets...</div>
+              ) : presets.map((preset) => (
+                <div key={preset.id || preset.name} className="p-4 rounded-lg bg-surface-2 border border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-text">{preset.name}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        preset.isBuiltin
+                          ? 'bg-primary/20 text-primary border border-primary/30'
+                          : 'bg-accent/20 text-accent border border-accent/30'
+                      }`}>
+                        {preset.isBuiltin ? 'Built-in' : 'Custom Preset'}
+                      </span>
+                    </div>
+                    {!preset.isBuiltin && !isViewer && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete custom preset "${preset.name}"?`)) {
+                            deletePresetMutation.mutate(preset.id);
+                          }
+                        }}
+                        className="p-1 rounded text-text-muted hover:text-status-down transition-colors"
+                        title="Delete custom preset"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-muted">{preset.description}</p>
+                  <div className="pt-2 flex flex-wrap gap-1 border-t border-border/40">
+                    {preset.features && Object.entries(preset.features)
+                      .filter(([_, conf]: [string, any]) => conf.enabled)
+                      .map(([featKey]) => (
+                        <span key={featKey} className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface border border-border text-text-muted">
+                          {featKey}
+                        </span>
+                      ))}
                   </div>
                 </div>
               ))}

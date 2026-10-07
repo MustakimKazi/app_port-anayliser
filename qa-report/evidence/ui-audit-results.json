@@ -1,0 +1,1322 @@
+[
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 1920,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 1366,
+    "page": "/ports",
+    "detail": "1536 > 1366"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 1366,
+    "page": "/routes",
+    "detail": "1392 > 1366"
+  },
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 1366,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/ports",
+    "detail": "1536 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/routes",
+    "detail": "1392 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/backends",
+    "detail": "1008 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/issues",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/config-files",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/certificates",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/port-map",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/history",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "page": "/settings",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 768,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/ports",
+    "detail": "1536 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/routes",
+    "detail": "1392 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/backends",
+    "detail": "1052 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/issues",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/config-files",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/certificates",
+    "detail": "1052 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/port-map",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/history",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "page": "/settings",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "dark",
+    "width": 390,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1920,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 1920,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 1366,
+    "page": "/ports",
+    "detail": "1536 > 1366"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 1366,
+    "page": "/routes",
+    "detail": "1392 > 1366"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 1366,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 1366,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/ports",
+    "detail": "1536 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/routes",
+    "detail": "1392 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/backends",
+    "detail": "1008 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/issues",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/config-files",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/certificates",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/port-map",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/history",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "page": "/settings",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 768,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 768,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/ports",
+    "detail": "1536 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/routes",
+    "detail": "1392 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/backends",
+    "detail": "1008 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/issues",
+    "detail": "1052 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/config-files",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/certificates",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/port-map",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/history",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "page": "/settings",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "chromium",
+    "width": 390,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941176 0.898039)"
+  },
+  {
+    "type": "console-error",
+    "browser": "chromium",
+    "theme": "light",
+    "width": 390,
+    "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 1366,
+    "page": "/ports",
+    "detail": "1536 > 1366"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 1366,
+    "page": "/routes",
+    "detail": "1377 > 1366"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/ports",
+    "detail": "1536 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/routes",
+    "detail": "1377 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/backends",
+    "detail": "1053 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/issues",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/config-files",
+    "detail": "1053 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/certificates",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/port-map",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/history",
+    "detail": "1053 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 768,
+    "page": "/settings",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/ports",
+    "detail": "1536 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/routes",
+    "detail": "1377 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/backends",
+    "detail": "1017 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/issues",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/config-files",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/certificates",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/port-map",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/history",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "dark",
+    "width": 390,
+    "page": "/settings",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1920,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 1366,
+    "page": "/ports",
+    "detail": "1536 > 1366"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 1366,
+    "page": "/routes",
+    "detail": "1377 > 1366"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 1366,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/ports",
+    "detail": "1536 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/routes",
+    "detail": "1377 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/backends",
+    "detail": "1017 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/issues",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/config-files",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/certificates",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/port-map",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/history",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 768,
+    "page": "/settings",
+    "detail": "1004 > 768"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 768,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/ports",
+    "detail": "1536 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/ports",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/routes",
+    "detail": "1377 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/routes",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/backends",
+    "detail": "1017 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/backends",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/issues",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/issues",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/config-files",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/config-files",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/certificates",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/certificates",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/port-map",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/port-map",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/history",
+    "detail": "1004 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/history",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  },
+  {
+    "type": "h-overflow",
+    "browser": "firefox",
+    "theme": "light",
+    "width": 390,
+    "page": "/settings",
+    "detail": "1053 > 390"
+  },
+  {
+    "type": "light-bg",
+    "browser": "firefox",
+    "width": 390,
+    "page": "/settings",
+    "detail": "expected #F4F0E5 got color(srgb 0.956863 0.941177 0.898039)"
+  }
+]

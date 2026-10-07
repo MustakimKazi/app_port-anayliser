@@ -1,0 +1,325 @@
+[
+  {
+    "page": "/",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": 1
+      },
+      {
+        "id": "svg-img-alt",
+        "impact": "serious",
+        "nodes": 4
+      }
+    ],
+    "total": 3
+  },
+  {
+    "page": "/ports",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "empty-table-header",
+        "impact": "minor",
+        "nodes": 1
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "nodes": 30
+      },
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 6
+      }
+    ],
+    "total": 3
+  },
+  {
+    "page": "/routes",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 4
+      }
+    ],
+    "total": 1
+  },
+  {
+    "page": "/backends",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": 4
+      }
+    ],
+    "total": 2
+  },
+  {
+    "page": "/issues",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 102
+      },
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 3
+      }
+    ],
+    "total": 2
+  },
+  {
+    "page": "/config-files",
+    "theme": "dark",
+    "violations": [],
+    "total": 0
+  },
+  {
+    "page": "/certificates",
+    "theme": "dark",
+    "violations": [],
+    "total": 0
+  },
+  {
+    "page": "/port-map",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 2
+      }
+    ],
+    "total": 1
+  },
+  {
+    "page": "/history",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": 1
+      }
+    ],
+    "total": 2
+  },
+  {
+    "page": "/settings",
+    "theme": "dark",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "nodes": 4
+      }
+    ],
+    "total": 2
+  },
+  {
+    "page": "/",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": 1
+      },
+      {
+        "id": "svg-img-alt",
+        "impact": "serious",
+        "nodes": 4
+      }
+    ],
+    "total": 3
+  },
+  {
+    "page": "/ports",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 33
+      },
+      {
+        "id": "empty-table-header",
+        "impact": "minor",
+        "nodes": 1
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "nodes": 30
+      },
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 6
+      }
+    ],
+    "total": 4
+  },
+  {
+    "page": "/routes",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 3
+      },
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 4
+      }
+    ],
+    "total": 2
+  },
+  {
+    "page": "/backends",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 26
+      },
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": 4
+      }
+    ],
+    "total": 3
+  },
+  {
+    "page": "/issues",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 102
+      },
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 3
+      }
+    ],
+    "total": 2
+  },
+  {
+    "page": "/config-files",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 49
+      }
+    ],
+    "total": 1
+  },
+  {
+    "page": "/certificates",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 2
+      }
+    ],
+    "total": 1
+  },
+  {
+    "page": "/port-map",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 2
+      }
+    ],
+    "total": 1
+  },
+  {
+    "page": "/history",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "nodes": 1
+      }
+    ],
+    "total": 2
+  },
+  {
+    "page": "/settings",
+    "theme": "light",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 1
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "nodes": 4
+      }
+    ],
+    "total": 2
+  }
+]

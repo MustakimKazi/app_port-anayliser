@@ -1,0 +1,93 @@
+# API security sweep — 2026-10-07, live API :3100 (baseline build, unpatched tree)
+# Checklist item 3 (IDOR, injection, SSRF, secrets). Related bugs: 003, 007, 008,
+# 009, 013, 021, 040, 042, 048, 052. All outputs below are verbatim curl/grep.
+
+## 1. SQL injection
+$ grep -rn '\$queryRaw\|\$executeRaw' apps/api/src --include='*.ts'
+apps/api/src/modules/ports/ports.routes.ts:210:  countRes = await prisma.$queryRawUnsafe(countSql, ...params)
+apps/api/src/modules/ports/ports.routes.ts:221:  rows = await prisma.$queryRawUnsafe(dataSql, ...params)
+apps/api/src/modules/import-export/import-export.routes.ts:50:  $queryRawUnsafe('SELECT * FROM v_port_overview ORDER BY port ASC')
+
+- ports.routes.ts: every user filter is pushed as a $N placeholder + params array
+  (status/layer/protocol/q/process/server/tag/portMin/portMax); boolean filters are
+  fixed literals. Dynamic sort goes through an allowlist map (ports.routes.ts:187
+  `allowedSortFields`, :203 only interpolates allowlisted names).
+- LIMIT/OFFSET interpolate `limit`/`page` which in the BASELINE have no zod bounds
+  (BUG-021): z.coerce.number() still forces numeric input, so non-numeric strings
+  cannot inject SQL — observed `?limit=Infinity` reaches Postgres as LIMIT NaN ->
+  error 500 (proof below), not injection. Patch API-005 adds .int().min(1).max().
+- import-export line 50 is a static constant string.
+Conclusion: no SQLi found (parameterised + allowlisted).
+
+## 2. Path parameter IDOR / traversal probes
+$ curl -s -o - -w ' %{http_code}' http://127.0.0.1:3100/api/routes/999999
+{"error":"Route not found"} 404
+$ curl -s -o - -w ' %{http_code}' 'http://127.0.0.1:3100/api/routes/../../etc/passwd'
+{"message":"Route GET:/etc/passwd not found","error":"Not Found","statusCode":404} 404
+  (Fastify normalises `../` before routing; handler sees literal id -> 404)
+- Single-tenant schema: no per-object ownership column, so classic IDOR (cross-
+  tenant object access) does not apply. Authorization is role-based only
+  (admin/viewer, middleware/auth.ts) and is NOT enforced on baseline:
+$ curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3100/api/routes?limit=2'
+200     <- unauthenticated data access succeeds => BUG-003 (auth gap), already
+           covered by tests/api-auth.test.mjs (8 FAIL baseline).
+Conclusion: no object-level IDOR beyond BUG-003.
+
+## 3. XSS
+$ grep -rn "dangerouslySetInnerHTML" apps/web/src   -> (no matches)
+- JSON responses are application/json; React renders through text nodes.
+- CSV formula injection: baseline export has no guard => BUG-007 (patched in
+  API-007-export-correctness.diff, same file apps/api/src/modules/import-export/
+  import-export.routes.ts). Not re-tested here; see tests/api-import-export.test.mjs.
+Conclusion: no XSS via API.
+
+## 4. SSRF
+$ grep -rn "webhook\|slackDiscord\|telegram" apps/api/src --include='*.ts'  (settings)
+  -> settings are stored (alerts.routes.ts:117-127) but NEVER read: no fetch/
+     http.request/https.request anywhere in apps/api/src, no nodemailer/telegraf.
+  -> alert channels never leave the process (BUG-052), so there is no
+     attacker-controllable server-side request at all in the baseline.
+- The scanner itself probes user-declared hosts (tcp/http checks) — that is the
+  product's intended function, gated behind admin role by patch API-001.
+- Host header: used by CORS/origin comparison only (app.ts), never as a fetch URL.
+Conclusion: no SSRF beyond intended scanning; alert egress unimplemented (052).
+
+## 5. Secrets / leakage
+$ git ls-files | grep -i '\.env'          -> .env.example only (no real .env committed)
+$ grep -rn "bcrypt" apps/api/src/modules/auth/*.ts
+  -> import bcrypt from 'bcryptjs'; bcrypt.compareSync(password, user.passwordHash)
+$ grep -rn "password" apps/api/src/modules/auth/*.ts | grep -i "log\|console"  -> none
+  (no credential logging)
+- Error leakage (BUG-013) — baseline has NO global error handler at all:
+  $ grep -rn "setErrorHandler" apps/api/src  -> (no matches)
+  $ curl -s 'http://127.0.0.1:3100/api/ports?limit=Infinity'
+    {"statusCode":500,"code":"P2010","error":"Internal Server Error","message":
+     "\nInvalid `prisma.$queryRawUnsafe()` invocation:\n\n\nRaw query failed.
+     Code: `42703`. Message: `column \"nan\" does not exist`"}
+  => full Prisma invocation + SQL state leaked to any client (pre-fix; API-001
+     adds setErrorHandler returning a generic message).
+- Auth secrets in responses: passwordHash returned by baseline user endpoints —
+  BUG-003/010 family, patched by API-003 (response schema strips hash).
+- Prod API docs exposed at /api/docs (Scalar) — BUG-048.
+Conclusion: no new secret exposure; 013 leak above is live baseline evidence.
+
+## 6. Rate limiting / body size
+$ grep -c "rate-limit\|rateLimit" apps/api/src/app.ts   -> 0   (BUG-008 confirmed)
+$ curl -X POST http://127.0.0.1:3100/api/settings -H 'Content-Type: application/json' \
+       --data @4MB.json
+  413 {"statusCode":413,"code":"FST_ERR_CTP_BODY_TOO_LARGE",...}
+  -> Fastify default JSON body limit (1 MB) rejects oversized payloads; multipart
+     is explicitly capped at 10 MB (app.ts:59-62 `limits.fileSize`).
+Conclusion: no body-size DoS; login endpoint remains unthrottled (008).
+
+## 7. Health / endpoint surface
+$ curl -s http://127.0.0.1:3100/api/health
+  {"status":"healthy","time":"2026-10-07T08:20:52.139Z","uptimeSeconds":3415,"dbConnected":true}
+$ curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/health   -> 404
+  (README/health must use /api/health — BUG-001 fix text updated accordingly)
+
+## 8. Verdict
+No NEW security bugs beyond the report. Sweep confirms baseline evidence for
+BUG-003 (unauth 200), BUG-008 (no rate limit), BUG-013 (Prisma internals in 500
+body), BUG-021 (NaN -> 500), BUG-052 (alert egress absent), and adds no-patch
+coverage notes for 007/048.

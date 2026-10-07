@@ -1,0 +1,222 @@
+--- a/apps/api/src/scanner/tcp-checker.ts
++++ b/apps/api/src/scanner/tcp-checker.ts
+@@ -2,7 +2,12 @@
+ 
+ export interface TCPCheckResult {
+   status: 'up' | 'down' | 'slow';
+-  latencyMs: number;
++  /**
++   * Round-trip time of a SUCCESSFUL connection. `null` for failed checks:
++   * a connection that never completed has no meaningful latency, and storing
++   * "latency for a down port" corrupts uptime/latency reporting.
++   */
++  latencyMs: number | null;
+   error?: string;
+ }
+ 
+@@ -26,7 +31,9 @@
+       const finish = (status: 'up' | 'down' | 'slow', err?: string) => {
+         if (resolved) return;
+         resolved = true;
+-        const latencyMs = Math.round(performance.now() - startTime);
++        // Only successful checks (up/slow) report a latency value
++        const latencyMs =
++          status === 'down' ? null : Math.round(performance.now() - startTime);
+         socket.destroy();
+         resolve({
+           status,
+--- a/apps/api/src/scanner/scanner-service.ts
++++ b/apps/api/src/scanner/scanner-service.ts
+@@ -14,6 +14,12 @@
+   private lastScanTime: Date | null = null;
+   private cachedCerts: CertificateInfo[] = [];
+ 
++  // Debounce state: number of consecutive failed probes per target.
++  // A port only flips to DOWN after N failures in a row, so one dropped
++  // packet / transient timeout cannot flip a healthy service's status.
++  private consecutiveFailures = new Map<string, number>();
++  private readonly failuresBeforeDown = 2;
++
+   constructor(private prisma: PrismaClient) {}
+ 
+   start() {
+@@ -71,7 +77,19 @@
+     try {
+       // Step 1: Host listening sockets
+       sseManager.broadcast('scan_progress', { stage: 'inspecting_sockets', progress: 15 });
+-      const listeningMap = await hostListener.getListeningPorts();
++      let listeningMap: Map<number, ListeningPortInfo>;
++      try {
++        listeningMap = await hostListener.getListeningPorts();
++      } catch (listenerErr) {
++        // Socket source unavailable (ss AND netstat failed). An empty list
++        // would look like "nothing is listening" and would flip every port
++        // down / mass-auto-resolve issues, so abort the cycle instead.
++        console.error('Scan aborted, listener source unavailable:', listenerErr);
++        sseManager.broadcast('scan_error', {
++          error: 'Listening-socket source unavailable (ss/netstat) — statuses left unchanged'
++        });
++        return { durationMs: 0, portsChecked: 0, backendsChecked: 0, issuesFound: 0 };
++      }
+ 
+       // Step 2: Probe Ports
+       sseManager.broadcast('scan_progress', { stage: 'checking_ports', progress: 35 });
+@@ -161,43 +179,65 @@
+             }
+ 
+             const oldStatus = p.status;
++            const probedStatus = status;
++
++            // Debounce: hold the previous status until this port has failed
++            // failuresBeforeDown probe cycles in a row (first failure of an
++            // 'unknown' port still records DOWN immediately).
++            const failKey = `port:${p.id}`;
++            let effectiveStatus: string = probedStatus;
++            if (probedStatus === 'down') {
++              const fails = (this.consecutiveFailures.get(failKey) || 0) + 1;
++              this.consecutiveFailures.set(failKey, fails);
++              if (fails < this.failuresBeforeDown && oldStatus !== 'unknown') {
++                effectiveStatus = oldStatus;
++              }
++            } else {
++              this.consecutiveFailures.delete(failKey);
++            }
++
++            // Uptime bookkeeping uses the PROBED result, not the held status
++            const probedUp = probedStatus === 'up' || probedStatus === 'slow';
+ 
+             await this.prisma.port.update({
+               where: { id: p.id },
+               data: {
+-                status,
+-                latencyMs,
++                status: effectiveStatus,
++                // No latency for failed checks
++                latencyMs: probedStatus === 'down' ? null : latencyMs,
+                 lastCheckedAt: now,
+-                lastSeenUpAt: status === 'up' || status === 'slow' ? now : p.lastSeenUpAt,
+-                listenAddress: hostInfo ? hostInfo.bindAddress : p.listenAddress,
+-                processName: hostInfo?.processName || p.processName,
+-                pid: hostInfo?.pid || p.pid,
++                lastSeenUpAt: probedUp ? now : p.lastSeenUpAt,
++                // Bind/process/pid come ONLY from live ss output: when the
++                // socket is no longer listening the stale values are cleared
++                listenAddress: hostInfo ? hostInfo.bindAddress : null,
++                processName: hostInfo?.processName ?? null,
++                pid: hostInfo?.pid ?? null,
+                 isPublic: hostInfo ? hostInfo.isPublic : p.isPublic
+               }
+             });
+ 
+-            // Record time-series check
++            // Record time-series check with the raw PROBED result
+             await this.prisma.portCheck.create({
+               data: {
+                 targetType: 'port',
+                 targetId: p.id,
+                 targetName: `Port ${p.port}`,
+                 checkedAt: now,
+-                status,
+-                latencyMs,
++                status: probedStatus,
++                latencyMs: probedStatus === 'down' ? null : latencyMs,
+                 checkType: 'tcp'
+               }
+             });
+ 
+             // Write status event if status changed
+-            if (oldStatus !== status && oldStatus !== 'unknown') {
++            if (oldStatus !== effectiveStatus && oldStatus !== 'unknown') {
+               const isMaintenance = currentLifecycle === 'maintenance';
+               await this.recordStatusEvent(
+                 'port',
+                 p.id,
+                 `Port ${p.port}`,
+                 oldStatus,
+-                status,
++                effectiveStatus,
+                 isMaintenance // mute alerts if in maintenance
+               );
+             }
+@@ -215,6 +255,16 @@
+       await Promise.all(
+         dbBackends.map((b) =>
+           backendLimit(async () => {
++            // $-variable / upstream targets are not literal addresses and
++            // must never be probed: record them as unknown (not down)
++            if (b.host.includes('$')) {
++              await this.prisma.backend.update({
++                where: { id: b.id },
++                data: { status: 'unknown', latencyMs: null, lastCheckedAt: now }
++              });
++              return;
++            }
++
+             const hostToProbe = b.host === 'localhost' ? '127.0.0.1' : b.host;
+             const res = await tcpChecker.check(
+               hostToProbe,
+@@ -224,12 +274,17 @@
+             );
+ 
+             const oldStatus = b.status;
++            // A DNS resolution failure means the target is unresolved, not
++            // "down": spec requires unknown for unresolved targets
++            const unresolved =
++              res.status === 'down' &&
++              /ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(res.error || '');
+ 
+             await this.prisma.backend.update({
+               where: { id: b.id },
+               data: {
+-                status: res.status,
+-                latencyMs: res.latencyMs,
++                status: unresolved ? 'unknown' : res.status,
++                latencyMs: res.status === 'down' ? null : res.latencyMs,
+                 lastCheckedAt: now
+               }
+             });
+--- a/apps/api/src/scanner/host-listener.ts
++++ b/apps/api/src/scanner/host-listener.ts
+@@ -37,10 +37,13 @@
+         this.parseNetstatOutput(stdout, results);
+         return results;
+       } catch (netstatErr) {
+-        // If neither command is available (e.g. strict docker container without host network)
+-        // Return empty or mock based on mode
+-        console.warn('Could not read host listening sockets via ss/netstat');
+-        return results;
++        // Neither ss nor netstat worked. Throwing (instead of returning an
++        // empty map) lets the scanner abort the cycle: an empty map would be
++        // indistinguishable from "nothing is listening" and would trigger a
++        // false mass-down / auto-resolve storm.
++        throw new Error(
++          'Could not read host listening sockets: ss and netstat both failed or are unavailable'
++        );
+       }
+     }
+   }
+--- /dev/null
++++ b/db/migrations/003_scanner_status_backfill.sql
+@@ -0,0 +1,22 @@
++-- Migration 003: Scanner status data backfill (QA bugs BUG-014 / BUG-016)
++--
++-- BUG-014: failed TCP probes used to store a fabricated latency value
++--          (measured up to the timeout). The scanner now writes NULL for
++--          failed checks; this backfills the historical rows.
++-- BUG-016: ports that are down/unknown used to keep the stale bind address,
++--          process and latency from their last successful probe. The scanner
++--          now clears them on a failed probe; this backfills the ports table.
++--
++-- 'slow' ports keep their bind/latency: they ARE listening.
++
++UPDATE port_checks
++SET "latencyMs" = NULL
++WHERE status = 'down' AND "latencyMs" IS NOT NULL;
++
++UPDATE ports
++SET "listenAddress" = NULL,
++    "processName" = NULL,
++    pid = NULL,
++    "latencyMs" = NULL
++WHERE status IN ('down', 'unknown')
++  AND ("listenAddress" IS NOT NULL OR "processName" IS NOT NULL OR pid IS NOT NULL OR "latencyMs" IS NOT NULL);

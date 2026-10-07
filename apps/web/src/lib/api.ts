@@ -4,7 +4,7 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestInit
   const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
 
   const defaultHeaders: Record<string, string> = {};
-  if (!(options.body instanceof FormData)) {
+  if (options.body !== undefined && options.body !== null && !(options.body instanceof FormData)) {
     defaultHeaders['Content-Type'] = 'application/json';
   }
 

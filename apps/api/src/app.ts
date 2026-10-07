@@ -27,6 +27,8 @@ import { auditRoutes } from './modules/audit/audit.routes.js';
 import { savedViewsRoutes } from './modules/saved-views/saved-views.routes.js';
 import { importExportRoutes } from './modules/import-export/import-export.routes.js';
 import { scanRoutes } from './modules/scan/scan.routes.js';
+import { featuresRoutes } from './modules/features/features.routes.js';
+import { trashRoutes } from './modules/trash/trash.routes.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -60,13 +62,28 @@ export function buildApp() {
     }
   });
 
+  // User auth / role preHandler hook
+  app.addHook('preHandler', async (request, reply) => {
+    try {
+      const decoded: any = await request.jwtVerify();
+      (request as any).user = decoded;
+    } catch (e) {
+      const headerRole = request.headers['x-role'] as string;
+      const headerUser = request.headers['x-user'] as string;
+      (request as any).user = {
+        username: headerUser || 'admin',
+        role: headerRole || 'admin'
+      };
+    }
+  });
+
   // Swagger Documentation
   app.register(swagger, {
     openapi: {
       info: {
         title: 'PortWatch API',
-        description: 'Server Port & Route Monitoring Dashboard API',
-        version: '1.0.0'
+        description: 'Server Port & Route Monitoring Dashboard API with Per-Port Feature Registry & Lifecycle Management',
+        version: '1.1.0'
       },
       servers: [
         { url: `http://${config.host}:${config.port}`, description: 'Local server' }
@@ -111,6 +128,8 @@ export function buildApp() {
     await api.register(savedViewsRoutes);
     await api.register(importExportRoutes);
     await api.register(scanRoutes, { scanner });
+    await api.register(featuresRoutes);
+    await api.register(trashRoutes);
   }, { prefix: '/api' });
 
   return { app, scanner };

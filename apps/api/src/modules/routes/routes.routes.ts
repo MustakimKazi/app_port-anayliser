@@ -2,6 +2,15 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import prisma from '../../db/prisma.js';
 
+export function checkAdminRole(request: FastifyRequest, reply: FastifyReply): boolean {
+  const user = (request as any).user;
+  if (user && user.role === 'viewer') {
+    reply.status(403).send({ error: 'Forbidden: Viewer role has read-only access' });
+    return false;
+  }
+  return true;
+}
+
 const RouteFilterSchema = z.object({
   domain: z.string().optional(),
   port: z.coerce.number().optional(),
@@ -10,10 +19,11 @@ const RouteFilterSchema = z.object({
   backendHost: z.string().optional(),
   backendPort: z.coerce.number().optional(),
   configFile: z.string().optional(),
-  unresolved: z.string().optional(), // 'true' for upstream, variable, unknown
+  unresolved: z.string().optional(),
   catchAll: z.string().optional(),
   websocket: z.string().optional(),
   rateLimit: z.string().optional(),
+  showArchived: z.string().optional(),
   q: z.string().optional(),
   sort: z.string().optional(),
   page: z.coerce.number().default(1),
@@ -21,7 +31,7 @@ const RouteFilterSchema = z.object({
 });
 
 export async function routesRoutes(fastify: FastifyInstance) {
-  // GET /api/routes - filterable list of routes
+  // GET /api/routes - Filterable list of routes
   fastify.get('/routes', async (request: FastifyRequest, reply: FastifyReply) => {
     const parse = RouteFilterSchema.safeParse(request.query);
     if (!parse.success) return reply.status(400).send({ error: parse.error });
@@ -38,6 +48,7 @@ export async function routesRoutes(fastify: FastifyInstance) {
       catchAll,
       websocket,
       rateLimit,
+      showArchived,
       q,
       sort = 'rowNum',
       page,
@@ -45,6 +56,10 @@ export async function routesRoutes(fastify: FastifyInstance) {
     } = parse.data;
 
     const where: any = {};
+
+    if (showArchived !== 'true') {
+      where.archivedAt = null;
+    }
 
     if (domain) {
       where.domain = { contains: domain, mode: 'insensitive' };
@@ -146,7 +161,7 @@ export async function routesRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // GET /api/routes/:id - Detail view with nginx config generator
+  // GET /api/routes/:id - Single route details
   fastify.get('/routes/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     const route = await prisma.route.findUnique({
@@ -154,60 +169,73 @@ export async function routesRoutes(fastify: FastifyInstance) {
       include: {
         port: true,
         backend: { include: { server: true } },
-        configFile: true
+        configFile: true,
+        issues: true
+      }
+    });
+
+    if (!route) return reply.status(404).send({ error: 'Route not found' });
+    return reply.send(route);
+  });
+
+  // GET /api/routes/:id/impact - Computes impact before archive/delete
+  fastify.get('/routes/:id/impact', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const { id } = request.params;
+    const route = await prisma.route.findUnique({
+      where: { id },
+      include: {
+        port: true,
+        backend: true,
+        issues: { where: { status: { in: ['open', 'acknowledged'] } } }
       }
     });
 
     if (!route) return reply.status(404).send({ error: 'Route not found' });
 
-    // Generate Nginx snippet preview
-    let nginxSnippet = `# Server block: ${route.domain}\n`;
-    nginxSnippet += `server {\n`;
-    nginxSnippet += `    listen ${route.portNum || 80}${route.protocol === 'HTTPS' ? ' ssl' : ''};\n`;
-    nginxSnippet += `    server_name ${route.isCatchAll ? '_' : route.domain};\n\n`;
-    nginxSnippet += `    location ${route.path} {\n`;
-
-    if (route.action === 'Proxy') {
-      nginxSnippet += `        proxy_pass ${route.targetRaw || 'http://127.0.0.1:8080'};\n`;
-      nginxSnippet += `        proxy_set_header Host $host;\n`;
-      nginxSnippet += `        proxy_set_header X-Real-IP $remote_addr;\n`;
-      if (route.flags && (route.flags as any).websocket) {
-        nginxSnippet += `        proxy_http_version 1.1;\n`;
-        nginxSnippet += `        proxy_set_header Upgrade $http_upgrade;\n`;
-        nginxSnippet += `        proxy_set_header Connection "upgrade";\n`;
-      }
-    } else if (route.action === 'Static') {
-      nginxSnippet += `        root ${route.staticRoot || '/var/www/html'};\n`;
-      nginxSnippet += `        try_files $uri $uri/ =404;\n`;
-    } else if (route.action === 'Redirect') {
-      nginxSnippet += `        return ${route.redirectCode || 301} ${route.targetRaw};\n`;
-    } else if (route.action === 'Status') {
-      nginxSnippet += `        stub_status;\n`;
-      nginxSnippet += `        allow 127.0.0.1;\n`;
-      nginxSnippet += `        deny all;\n`;
+    // Check if backend will become orphaned
+    let backendOrphaned = false;
+    if (route.backendId) {
+      const otherRoutes = await prisma.route.count({
+        where: { backendId: route.backendId, id: { not: id }, archivedAt: null }
+      });
+      backendOrphaned = otherRoutes === 0;
     }
-    nginxSnippet += `    }\n`;
-    nginxSnippet += `}\n`;
+
+    const warningLevel = route.backendId && backendOrphaned ? 'caution' : 'safe';
 
     return reply.send({
       route,
-      nginxSnippet
+      backendOrphaned,
+      openIssuesCount: route.issues.length,
+      warningLevel,
+      notice: 'Removing or archiving this route does not stop web servers on the host.'
     });
   });
 
-  // POST /api/routes
+  // POST /api/routes - Create a route
   fastify.post('/routes', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!checkAdminRole(request, reply)) return;
+
     const body = request.body as any;
+    const portNum = body.portNum ? parseInt(body.portNum) : null;
+
+    let portId = body.portId || null;
+    if (!portId && portNum) {
+      const p = await prisma.port.findFirst({ where: { port: portNum, archivedAt: null } });
+      if (p) portId = p.id;
+    }
+
     const created = await prisma.route.create({
       data: {
         domain: body.domain,
-        domainRaw: body.domain,
+        domainRaw: body.domainRaw || body.domain,
         isCatchAll: body.isCatchAll || false,
-        portNum: body.portNum ? parseInt(body.portNum) : null,
-        portRaw: String(body.portNum || ''),
+        portId,
+        portNum,
+        portRaw: String(portNum || ''),
         protocol: body.protocol || 'HTTP',
         path: body.path || '/',
-        paths: [body.path || '/'],
+        paths: body.paths || [body.path || '/'],
         action: body.action || 'Proxy',
         targetRaw: body.targetRaw || '',
         targetType: body.targetType || 'url',
@@ -232,8 +260,65 @@ export async function routesRoutes(fastify: FastifyInstance) {
     return reply.status(201).send(created);
   });
 
-  // PATCH /api/routes/:id
+  // POST /api/routes/bulk - Bulk add routes (paste or CSV)
+  fastify.post('/routes/bulk', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!checkAdminRole(request, reply)) return;
+
+    const { routesList } = request.body as { routesList: any[] };
+    if (!Array.isArray(routesList) || routesList.length === 0) {
+      return reply.status(400).send({ error: 'No routes provided in routesList' });
+    }
+
+    const username = (request as any).user?.username || 'admin';
+    const createdRoutes: any[] = [];
+
+    await prisma.$transaction(async (tx) => {
+      for (const item of routesList) {
+        if (!item.domain) continue;
+
+        const portNum = item.portNum ? parseInt(item.portNum) : null;
+        let portId = item.portId || null;
+        if (!portId && portNum) {
+          const p = await tx.port.findFirst({ where: { port: portNum, archivedAt: null } });
+          if (p) portId = p.id;
+        }
+
+        const r = await tx.route.create({
+          data: {
+            domain: item.domain,
+            domainRaw: item.domain,
+            path: item.path || '/',
+            paths: [item.path || '/'],
+            action: item.action || 'Proxy',
+            protocol: item.protocol || 'HTTP',
+            portId,
+            portNum,
+            targetRaw: item.targetRaw || '',
+            targetType: item.targetType || 'url',
+            backendId: item.backendId || null,
+            notes: item.notes || ''
+          }
+        });
+        createdRoutes.push(r);
+      }
+
+      await tx.auditLog.create({
+        data: {
+          username,
+          action: 'bulk_create',
+          entity: 'route',
+          afterState: { count: createdRoutes.length }
+        }
+      });
+    });
+
+    return reply.status(201).send({ success: true, count: createdRoutes.length, routes: createdRoutes });
+  });
+
+  // PATCH /api/routes/:id - Edit route
   fastify.patch('/routes/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    if (!checkAdminRole(request, reply)) return;
+
     const { id } = request.params;
     const body = request.body as any;
 
@@ -249,6 +334,8 @@ export async function routesRoutes(fastify: FastifyInstance) {
         targetRaw: body.targetRaw !== undefined ? body.targetRaw : existing.targetRaw,
         targetType: body.targetType !== undefined ? body.targetType : existing.targetType,
         backendId: body.backendId !== undefined ? body.backendId : existing.backendId,
+        portId: body.portId !== undefined ? body.portId : existing.portId,
+        portNum: body.portNum !== undefined ? (body.portNum ? parseInt(body.portNum) : null) : existing.portNum,
         notes: body.notes !== undefined ? body.notes : existing.notes,
         customValues: body.customValues !== undefined ? body.customValues : existing.customValues
       }
@@ -268,17 +355,94 @@ export async function routesRoutes(fastify: FastifyInstance) {
     return reply.send(updated);
   });
 
-  // DELETE /api/routes/:id
-  fastify.delete('/routes/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  // POST /api/routes/:id/archive - Archive a route
+  fastify.post('/routes/:id/archive', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    if (!checkAdminRole(request, reply)) return;
+
     const { id } = request.params;
     const existing = await prisma.route.findUnique({ where: { id } });
     if (!existing) return reply.status(404).send({ error: 'Route not found' });
+
+    const username = (request as any).user?.username || 'admin';
+    const now = new Date();
+
+    const updated = await prisma.route.update({
+      where: { id },
+      data: {
+        archivedAt: now,
+        archivedBy: username
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        username,
+        action: 'archive',
+        entity: 'route',
+        entityId: id,
+        beforeState: existing,
+        afterState: updated
+      }
+    });
+
+    return reply.send({ success: true, message: `Route ${existing.domain}${existing.path} archived.` });
+  });
+
+  // POST /api/routes/:id/restore - Restore an archived route
+  fastify.post('/routes/:id/restore', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    if (!checkAdminRole(request, reply)) return;
+
+    const { id } = request.params;
+    const existing = await prisma.route.findUnique({ where: { id } });
+    if (!existing) return reply.status(404).send({ error: 'Route not found' });
+
+    const restored = await prisma.route.update({
+      where: { id },
+      data: {
+        archivedAt: null,
+        archivedBy: null
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        username: (request as any).user?.username || 'admin',
+        action: 'restore',
+        entity: 'route',
+        entityId: id,
+        afterState: restored
+      }
+    });
+
+    return reply.send({ success: true, route: restored });
+  });
+
+  // DELETE /api/routes/:id - Permanently delete route (with snapshot)
+  fastify.delete('/routes/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    if (!checkAdminRole(request, reply)) return;
+
+    const { id } = request.params;
+    const existing = await prisma.route.findUnique({ where: { id } });
+    if (!existing) return reply.status(404).send({ error: 'Route not found' });
+
+    const username = (request as any).user?.username || 'admin';
+
+    // Store snapshot
+    await prisma.trashSnapshot.create({
+      data: {
+        entityType: 'route',
+        entityId: id,
+        entityName: `${existing.domain}${existing.path}`,
+        data: existing,
+        deletedBy: username
+      }
+    });
 
     await prisma.route.delete({ where: { id } });
 
     await prisma.auditLog.create({
       data: {
-        username: (request as any).user?.username || 'admin',
+        username,
         action: 'delete',
         entity: 'route',
         entityId: id,

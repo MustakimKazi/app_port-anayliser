@@ -1,0 +1,13 @@
+--- a/apps/api/Dockerfile
++++ b/apps/api/Dockerfile
+@@ -22,5 +22,10 @@
+ COPY --from=builder /app/scripts ./scripts
+ COPY nginx_documentation.xlsx ./
+ 
++# Run as an unprivileged user (root inside the container was a hardening gap)
++RUN addgroup -S portwatch && adduser -S portwatch -G portwatch \
++    && chown -R portwatch:portwatch /app
++USER portwatch
++
+ EXPOSE 3100
+ CMD ["node", "apps/api/dist/server.js"]

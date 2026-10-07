@@ -18,15 +18,28 @@ import {
   Layers,
   ArrowUpDown,
   MoreVertical,
-  X
+  X,
+  Plus,
+  Archive,
+  Trash2,
+  Sliders,
+  Shield,
+  RotateCcw,
+  Calendar,
+  AlertOctagon
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { StatusBadge, PriorityBadge, ActionBadge } from '../../components/ui/Badge';
+import { StatusBadge, PriorityBadge, ActionBadge, LifecycleBadge } from '../../components/ui/Badge';
 import { Drawer } from '../../components/ui/Drawer';
 import { Tabs } from '../../components/ui/Tabs';
-import { Port, Route, Issue } from '../../types';
+import { Port, Route, Issue, FeaturePreset, FeatureItem, ImpactPreview } from '../../types';
+import { AddPortDialog } from './AddPortDialog';
+import { RemovePortDialog } from './RemovePortDialog';
+import { ApplyPresetModal } from './ApplyPresetModal';
+import { TrashModal } from '../trash/TrashModal';
+import { PlannedPortsWidget } from './PlannedPortsWidget';
 
 export function PortsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,25 +52,55 @@ export function PortsPage() {
   const protocolFilter = searchParams.get('protocol') || '';
   const bindFilter = searchParams.get('bind') || '';
   const hasIssuesFilter = searchParams.get('hasIssues') || '';
+  const lifecycleFilter = searchParams.get('lifecycle') || '';
+  const showArchived = searchParams.get('showArchived') || '';
   const portMin = searchParams.get('portMin') || '';
   const portMax = searchParams.get('portMax') || '';
   const sort = searchParams.get('sort') || 'port';
   const density = searchParams.get('density') || 'comfortable';
 
-  // Local state
+  // Dialog States
+  const [isAddPortOpen, setIsAddPortOpen] = useState(false);
+  const [addPortPrefill, setAddPortPrefill] = useState<any>(null);
+  const [removePortTarget, setRemovePortTarget] = useState<{ id: string; port: number } | null>(null);
+  const [isApplyPresetOpen, setIsApplyPresetOpen] = useState(false);
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
+
+  // Undo Toast state
+  const [undoToast, setUndoToast] = useState<{ portNum: number; portId: string; timer: any } | null>(null);
+
+  // Selected row & drawer state
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isCheckingSingle, setIsCheckingSingle] = useState(false);
   const [bulkAction, setBulkAction] = useState<string>('');
   const [bulkTagInput, setBulkTagInput] = useState<string>('');
-  const [activeDrawerTab, setActiveDrawerTab] = useState<'overview' | 'routes' | 'history' | 'issues'>('overview');
+  const [bulkLifecycleInput, setBulkLifecycleInput] = useState<string>('');
+  const [activeDrawerTab, setActiveDrawerTab] = useState<
+    'overview' | 'routes' | 'features' | 'lifecycle' | 'impact' | 'history' | 'issues'
+  >('overview');
 
-  // Inline notes/tags editing
+  // Inline notes/tags editing in drawer
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
 
-  // Fetch Ports query based on filters
+  // Fetch current user for role permission check
+  const { data: currentUser } = useQuery<{ role: string; username: string }>({
+    queryKey: ['me'],
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' }))
+  });
+
+  const isViewer = currentUser?.role === 'viewer';
+
+  // Check URL action (e.g. ?action=add)
+  useEffect(() => {
+    if (searchParams.get('action') === 'add') {
+      setIsAddPortOpen(true);
+    }
+  }, [searchParams]);
+
+  // Fetch Ports query
   const { data, isLoading } = useQuery<{ data: Port[]; pagination: { total: number } }>({
     queryKey: ['ports', searchParams.toString()],
     queryFn: () => {
@@ -71,13 +114,35 @@ export function PortsPage() {
     port: Port;
     routes: Route[];
     issues: Issue[];
+    features: any[];
     uptimeBlocks: Array<{ hour: number; label: string; status: any }>;
     recentChecks: any[];
+    statusEvents: any[];
     auditLogs: any[];
   }>({
     queryKey: ['port-detail', selectedPortId],
     queryFn: () => apiRequest(`/ports/${selectedPortId}`),
     enabled: !!selectedPortId
+  });
+
+  // Fetch Registry Features & Presets for drawer
+  const { data: registryFeatures = [] } = useQuery<FeatureItem[]>({
+    queryKey: ['features-registry'],
+    queryFn: () => apiRequest('/features/registry'),
+    enabled: activeDrawerTab === 'features' && !!selectedPortId
+  });
+
+  const { data: presets = [] } = useQuery<FeaturePreset[]>({
+    queryKey: ['feature-presets'],
+    queryFn: () => apiRequest('/feature-presets'),
+    enabled: activeDrawerTab === 'features' && !!selectedPortId
+  });
+
+  // Fetch impact preview when impact tab is open
+  const { data: portImpact } = useQuery<ImpactPreview>({
+    queryKey: ['port-impact', selectedPortId],
+    queryFn: () => apiRequest(`/ports/${selectedPortId}/impact`),
+    enabled: activeDrawerTab === 'impact' && !!selectedPortId
   });
 
   useEffect(() => {
@@ -123,6 +188,42 @@ export function PortsPage() {
   const executeBulkAction = async () => {
     if (!selectedIds.length || !bulkAction) return;
 
+    if (bulkAction === 'applyPreset') {
+      setIsApplyPresetOpen(true);
+      return;
+    }
+
+    if (bulkAction === 'archiveSelected') {
+      if (confirm(`Archive ${selectedIds.length} ports? They can be restored from the trash.`)) {
+        for (const id of selectedIds) {
+          await apiRequest(`/ports/${id}/archive`, { method: 'POST' });
+        }
+        setSelectedIds([]);
+        setBulkAction('');
+        queryClient.invalidateQueries({ queryKey: ['ports'] });
+        queryClient.invalidateQueries({ queryKey: ['overview'] });
+      }
+      return;
+    }
+
+    if (bulkAction === 'setLifecycle' && bulkLifecycleInput) {
+      for (const id of selectedIds) {
+        await apiRequest(`/ports/${id}/lifecycle`, {
+          method: 'POST',
+          body: JSON.stringify({
+            lifecycle: bulkLifecycleInput,
+            reason: 'Bulk lifecycle update'
+          })
+        });
+      }
+      setSelectedIds([]);
+      setBulkAction('');
+      setBulkLifecycleInput('');
+      queryClient.invalidateQueries({ queryKey: ['ports'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      return;
+    }
+
     await apiRequest('/ports/bulk', {
       method: 'POST',
       body: JSON.stringify({
@@ -165,10 +266,115 @@ export function PortsPage() {
     }
   };
 
+  // Toggle single feature in drawer
+  const handleFeatureToggle = async (featureKey: string, enabled: boolean) => {
+    if (!selectedPortId) return;
+    await apiRequest(`/ports/${selectedPortId}/features`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        features: {
+          [featureKey]: { enabled }
+        }
+      })
+    });
+    refetchPortDetail();
+    queryClient.invalidateQueries({ queryKey: ['ports'] });
+  };
+
+  // Save current drawer features as custom preset
+  const handleSaveAsPreset = async () => {
+    const name = prompt('Enter a name for this new Feature Preset:');
+    if (!name || !selectedPortId) return;
+
+    try {
+      await apiRequest('/feature-presets', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          portId: selectedPortId,
+          features: {}
+        })
+      });
+      alert(`Preset "${name}" saved successfully!`);
+      queryClient.invalidateQueries({ queryKey: ['feature-presets'] });
+    } catch (e: any) {
+      alert(e.message || 'Failed to save preset');
+    }
+  };
+
+  // Lifecycle transition mutation in drawer
+  const changeLifecycle = async (newLifecycle: string, reasonPrompt: boolean = false) => {
+    if (!selectedPortId) return;
+    let reason = '';
+    if (reasonPrompt) {
+      reason = prompt(`Reason for setting status to ${newLifecycle.toUpperCase()}:`) || '';
+    }
+
+    await apiRequest(`/ports/${selectedPortId}/lifecycle`, {
+      method: 'POST',
+      body: JSON.stringify({
+        lifecycle: newLifecycle,
+        reason
+      })
+    });
+    refetchPortDetail();
+    queryClient.invalidateQueries({ queryKey: ['ports'] });
+    queryClient.invalidateQueries({ queryKey: ['overview'] });
+  };
+
+  // Trigger undo toast
+  const handlePortArchived = (portNum: number, portId?: string) => {
+    if (undoToast?.timer) clearTimeout(undoToast.timer);
+
+    const timer = setTimeout(() => {
+      setUndoToast(null);
+    }, 10000);
+
+    const actualPortId = portId || removePortTarget?.id || '';
+    setUndoToast({
+      portNum,
+      portId: actualPortId,
+      timer
+    });
+  };
+
+  const handleUndo = async () => {
+    if (!undoToast) return;
+    try {
+      await apiRequest(`/ports/${undoToast.portId}/restore`, { method: 'POST' });
+      clearTimeout(undoToast.timer);
+      setUndoToast(null);
+      queryClient.invalidateQueries({ queryKey: ['ports'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    } catch (e) {
+      console.error('Undo failed:', e);
+    }
+  };
+
   const ports = data?.data || [];
 
   return (
     <div className="space-y-5">
+      {/* Undo Toast Notification (10 seconds) */}
+      {undoToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-surface border border-primary/50 text-text px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
+          <CheckCircle2 className="w-5 h-5 text-status-up" />
+          <span className="text-xs font-medium">
+            Port :{undoToast.portNum} archived.
+          </span>
+          <Button variant="secondary" size="sm" onClick={handleUndo} className="text-xs py-1 h-7">
+            <RotateCcw className="w-3.5 h-3.5 mr-1" />
+            Undo
+          </Button>
+          <button
+            onClick={() => setUndoToast(null)}
+            className="text-text-muted hover:text-text p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Page Title & Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -185,29 +391,30 @@ export function PortsPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5">
-          {/* Saved Views Preset */}
-          <select
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === 'db') {
-                updateFilter('layer', 'stream');
-              } else if (val === 'public-http') {
-                updateFilter('layer', 'http');
-                updateFilter('protocol', 'HTTP');
-                updateFilter('bind', 'public');
-              } else if (val === 'issues') {
-                updateFilter('hasIssues', 'true');
-              } else {
-                clearAllFilters();
-              }
-            }}
-            className="px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary"
+          {/* Primary Add Port Button (Admin Only) */}
+          {!isViewer && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => { setAddPortPrefill(null); setIsAddPortOpen(true); }}
+              className="text-xs shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              <span>Add Port</span>
+            </Button>
+          )}
+
+          {/* Archived / Trash View Button */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsTrashOpen(true)}
+            className="text-xs"
+            title="Open archived items and trash view"
           >
-            <option value="">Saved Views...</option>
-            <option value="db">My DB Ports (Redis/Mongo)</option>
-            <option value="public-http">Public Plain HTTP</option>
-            <option value="issues">Ports With Issues</option>
-          </select>
+            <Archive className="w-3.5 h-3.5 mr-1 text-text-muted" />
+            <span>Trash</span>
+          </Button>
 
           {/* Density toggle */}
           <button
@@ -223,11 +430,11 @@ export function PortsPage() {
           {/* Export Dropdown */}
           <div className="relative group">
             <Button variant="secondary" size="sm" className="text-xs">
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5 mr-1" />
               <span>Export</span>
-              <ChevronDown className="w-3 h-3 opacity-60" />
+              <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
             </Button>
-            <div className="absolute right-0 mt-1 w-32 bg-surface border border-border-strong rounded-lg shadow-xl py-1 hidden group-hover:block z-20">
+            <div className="absolute right-0 mt-1 w-36 bg-surface border border-border-strong rounded-lg shadow-xl py-1 hidden group-hover:block z-20">
               <button
                 onClick={() => handleExport('csv')}
                 className="w-full text-left px-3 py-1.5 text-xs text-text hover:bg-surface-2"
@@ -251,6 +458,9 @@ export function PortsPage() {
         </div>
       </div>
 
+      {/* Planned Ports Schedule Widget */}
+      <PlannedPortsWidget ports={ports} onOpenPort={(id) => setSelectedPortId(id)} />
+
       {/* Filter Toolbar */}
       <Card className="p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -261,7 +471,7 @@ export function PortsPage() {
               type="text"
               value={q}
               onChange={(e) => updateFilter('q', e.target.value)}
-              placeholder="Search port, domain, process, purpose..."
+              placeholder="Search port, domain, process, owner, purpose..."
               className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text placeholder-text-muted focus:outline-none focus:border-primary"
             />
             {q && (
@@ -273,6 +483,21 @@ export function PortsPage() {
               </button>
             )}
           </div>
+
+          {/* Lifecycle Filter */}
+          <select
+            value={lifecycleFilter}
+            onChange={(e) => updateFilter('lifecycle', e.target.value)}
+            className="px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary font-medium"
+          >
+            <option value="">Lifecycle: All Standard</option>
+            <option value="active">Active (In use)</option>
+            <option value="planned">Planned (Upcoming)</option>
+            <option value="reserved">Reserved</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="deprecated">Deprecated</option>
+            <option value="archived">Archived (Soft deleted)</option>
+          </select>
 
           {/* Status Filter */}
           <select
@@ -309,22 +534,34 @@ export function PortsPage() {
             <option value="HTTPS">HTTPS</option>
             <option value="TCP">TCP</option>
           </select>
-
-          {/* Bind Filter */}
-          <select
-            value={bindFilter}
-            onChange={(e) => updateFilter('bind', e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary"
-          >
-            <option value="">Bind: All</option>
-            <option value="public">Public (0.0.0.0)</option>
-            <option value="local">Local (127.0.0.1)</option>
-          </select>
         </div>
 
-        {/* Second Row: Has Issues, Port Range, Reset */}
+        {/* Second Row: Show Archived Toggle, Bind, Issues, Clear */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border">
           <div className="flex flex-wrap items-center gap-3">
+            {/* Show Archived Switch */}
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-text bg-surface-2 px-2.5 py-1 rounded-md border border-border">
+              <input
+                type="checkbox"
+                checked={showArchived === 'true'}
+                onChange={(e) => updateFilter('showArchived', e.target.checked ? 'true' : '')}
+                className="w-3.5 h-3.5 rounded text-primary focus:ring-0"
+              />
+              <span>Show Archived</span>
+            </label>
+
+            {/* Bind Filter */}
+            <select
+              value={bindFilter}
+              onChange={(e) => updateFilter('bind', e.target.value)}
+              className="px-2.5 py-1 rounded-md bg-surface border border-border-strong text-xs text-text focus:outline-none"
+            >
+              <option value="">Bind: All</option>
+              <option value="public">Public (0.0.0.0)</option>
+              <option value="local">Local (127.0.0.1)</option>
+            </select>
+
+            {/* Issues Filter */}
             <select
               value={hasIssuesFilter}
               onChange={(e) => updateFilter('hasIssues', e.target.value)}
@@ -342,7 +579,7 @@ export function PortsPage() {
                 placeholder="Min"
                 value={portMin}
                 onChange={(e) => updateFilter('portMin', e.target.value)}
-                className="w-20 px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text"
+                className="w-20 px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text font-mono"
               />
               <span>–</span>
               <input
@@ -350,12 +587,12 @@ export function PortsPage() {
                 placeholder="Max"
                 value={portMax}
                 onChange={(e) => updateFilter('portMax', e.target.value)}
-                className="w-20 px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text"
+                className="w-20 px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text font-mono"
               />
             </div>
           </div>
 
-          {(statusFilter || layerFilter || protocolFilter || bindFilter || hasIssuesFilter || portMin || portMax || q) && (
+          {(statusFilter || layerFilter || protocolFilter || bindFilter || hasIssuesFilter || lifecycleFilter || showArchived || portMin || portMax || q) && (
             <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-xs text-status-down hover:text-status-down/80">
               Clear Filters
             </Button>
@@ -363,24 +600,42 @@ export function PortsPage() {
         </div>
       </Card>
 
-      {/* Bulk Operations Bar if any rows selected */}
-      {selectedIds.length > 0 && (
-        <div className="p-3 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-between gap-3 text-xs text-text">
+      {/* Bulk Operations Toolbar */}
+      {selectedIds.length > 0 && !isViewer && (
+        <div className="p-3 rounded-lg bg-primary/10 border border-primary/30 flex flex-wrap items-center justify-between gap-3 text-xs text-text">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-text">{selectedIds.length} ports selected</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={bulkAction}
               onChange={(e) => setBulkAction(e.target.value)}
-              className="px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text focus:outline-none"
+              className="px-2.5 py-1 rounded bg-surface border border-border-strong text-xs text-text focus:outline-none"
             >
               <option value="">Choose Bulk Action...</option>
+              <option value="applyPreset">Apply Preset...</option>
+              <option value="setLifecycle">Set Lifecycle...</option>
+              <option value="archiveSelected">Archive Selected</option>
               <option value="checkNow">Check Now</option>
               <option value="markExpected">Mark as Expected</option>
               <option value="ackIssues">Acknowledge Issues</option>
               <option value="addTag">Add Tag</option>
             </select>
+
+            {bulkAction === 'setLifecycle' && (
+              <select
+                value={bulkLifecycleInput}
+                onChange={(e) => setBulkLifecycleInput(e.target.value)}
+                className="px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text"
+              >
+                <option value="">Select Lifecycle</option>
+                <option value="active">Active</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="deprecated">Deprecated</option>
+                <option value="planned">Planned</option>
+                <option value="reserved">Reserved</option>
+              </select>
+            )}
 
             {bulkAction === 'addTag' && (
               <input
@@ -392,10 +647,10 @@ export function PortsPage() {
               />
             )}
 
-            <Button variant="teal" size="sm" onClick={executeBulkAction}>
+            <Button variant="primary" size="sm" onClick={executeBulkAction} className="text-xs">
               Apply
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} className="text-xs">
               Cancel
             </Button>
           </div>
@@ -406,7 +661,7 @@ export function PortsPage() {
       <div className="rounded-xl border border-border bg-surface backdrop-blur-md overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-text">
-            <thead className="bg-surface-2 text-[11px] uppercase tracking-wider text-text-muted border-b border-border sticky top-0">
+            <thead className="bg-surface-2 text-[11px] uppercase tracking-wider text-text-muted border-b border-border sticky top-0 z-10">
               <tr>
                 <th className="py-3 px-3 w-8">
                   <input
@@ -429,6 +684,7 @@ export function PortsPage() {
                   </div>
                 </th>
                 <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3">Lifecycle</th>
                 <th className="py-3 px-3">Layer</th>
                 <th className="py-3 px-3">Protocol</th>
                 <th className="py-3 px-3">Bind</th>
@@ -438,35 +694,48 @@ export function PortsPage() {
                 <th className="py-3 px-3">Purpose</th>
                 <th className="py-3 px-3">Latency</th>
                 <th className="py-3 px-3">Issues</th>
-                <th className="py-3 px-3 text-right">Action</th>
+                <th className="py-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border font-sans">
               {isLoading ? (
                 <tr>
-                  <td colSpan={13} className="py-12 text-center text-text-muted">
+                  <td colSpan={14} className="py-12 text-center text-text-muted">
                     Loading ports...
                   </td>
                 </tr>
               ) : ports.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-12 text-center text-text-muted">
-                    No ports match the selected filter criteria.
+                  <td colSpan={14} className="py-12 text-center text-text-muted">
+                    <div className="max-w-sm mx-auto space-y-3">
+                      <div>No ports matching current filter criteria.</div>
+                      {!isViewer && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => { setAddPortPrefill(null); setIsAddPortOpen(true); }}
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          Add Port Now
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
                 ports.map((port) => {
                   const isSelected = selectedIds.includes(port.id);
-                  const py = density === 'compact' ? 'py-2' : 'py-3.5';
+                  const py = density === 'compact' ? 'py-1.5' : 'py-3';
 
                   return (
                     <tr
                       key={port.id}
                       onClick={() => setSelectedPortId(port.id)}
-                      className={`hover:bg-surface-2 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-primary/10' : ''
+                      className={`hover:bg-surface-2/60 transition-colors cursor-pointer ${
+                        selectedPortId === port.id ? 'bg-primary/5' : ''
                       }`}
                     >
+                      {/* Checkbox */}
                       <td className={`${py} px-3`} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
@@ -480,20 +749,18 @@ export function PortsPage() {
                       </td>
 
                       {/* Port Number */}
-                      <td className={`${py} px-3`}>
-                        <div className="flex items-center gap-1.5 font-mono text-sm font-bold text-text">
-                          <span>:{port.port}</span>
-                          {port.layer === 'stream' && (
-                            <span className="text-[10px] font-sans px-1 py-0.2 rounded bg-action-return/20 text-action-return border border-action-return/30">
-                              stream
-                            </span>
-                          )}
-                        </div>
+                      <td className={`${py} px-3 font-mono font-bold text-sm text-text`}>
+                        :{port.port}
                       </td>
 
                       {/* Status */}
                       <td className={`${py} px-3`}>
                         <StatusBadge status={port.status} size="sm" />
+                      </td>
+
+                      {/* Lifecycle Column */}
+                      <td className={`${py} px-3`}>
+                        <LifecycleBadge lifecycle={port.lifecycle} size="sm" />
                       </td>
 
                       {/* Layer */}
@@ -571,13 +838,24 @@ export function PortsPage() {
 
                       {/* Actions */}
                       <td className={`${py} px-3 text-right`} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => checkSingle(port.id)}
-                          className="p-1 rounded hover:bg-surface-2 text-text-muted hover:text-text transition-colors"
-                          title="Check Port Now"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => checkSingle(port.id)}
+                            className="p-1 rounded hover:bg-surface-2 text-text-muted hover:text-text transition-colors"
+                            title="Check Port Now"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                          {!isViewer && (
+                            <button
+                              onClick={() => setRemovePortTarget({ id: port.id, port: port.port })}
+                              className="p-1 rounded hover:bg-surface-2 text-text-muted hover:text-status-down transition-colors"
+                              title="Remove / Archive Port"
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -597,6 +875,7 @@ export function PortsPage() {
             <div className="flex items-center gap-2.5 font-mono">
               <span className="text-xl font-bold text-text">Port :{portDetail.port.port}</span>
               <StatusBadge status={portDetail.port.status} />
+              <LifecycleBadge lifecycle={portDetail.port.lifecycle} />
               <span className="text-xs uppercase font-sans text-text-muted font-medium px-2 py-0.5 bg-surface-2 rounded border border-border">
                 {portDetail.port.layer} / {portDetail.port.protocol}
               </span>
@@ -605,7 +884,7 @@ export function PortsPage() {
             'Port Details'
           )
         }
-        subtitle={portDetail?.port?.purpose || 'Inspecting port telemetry and routes'}
+        subtitle={portDetail?.port?.purpose || 'Inspecting port telemetry, features, and routes'}
       >
         {portDetail && (
           <div className="space-y-6">
@@ -616,6 +895,9 @@ export function PortsPage() {
               tabs={[
                 { id: 'overview', label: 'Overview & Uptime' },
                 { id: 'routes', label: 'Routes', badge: portDetail.routes.length },
+                { id: 'features', label: 'Features' },
+                { id: 'lifecycle', label: 'Lifecycle' },
+                { id: 'impact', label: 'Impact' },
                 { id: 'history', label: 'Checks', badge: portDetail.recentChecks.length },
                 { id: 'issues', label: 'Issues', badge: portDetail.issues.length }
               ]}
@@ -649,122 +931,101 @@ export function PortsPage() {
                   </div>
                 </div>
 
-                {/* Key metadata grid */}
+                {/* Metadata summary */}
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 rounded-lg border border-border bg-surface-2/40">
-                    <span className="text-text-muted">Bind Address</span>
-                    <p className="font-mono text-text mt-1">
-                      {portDetail.port.listenAddress || '0.0.0.0'} ({portDetail.port.isPublic ? 'Public' : 'Local'})
-                    </p>
+                  <div className="p-3 bg-surface-2/50 rounded-lg border border-border">
+                    <span className="text-text-muted block">Owner / Team:</span>
+                    <span className="text-text font-medium">{portDetail.port.owner || 'Unassigned'}</span>
                   </div>
-                  <div className="p-3 rounded-lg border border-border bg-surface-2/40">
-                    <span className="text-text-muted">Process / PID</span>
-                    <p className="font-mono text-text mt-1">
-                      {portDetail.port.processName || 'nginx'} (PID: {portDetail.port.pid || '—'})
-                    </p>
+                  <div className="p-3 bg-surface-2/50 rounded-lg border border-border">
+                    <span className="text-text-muted block">Expected Bind:</span>
+                    <span className="text-text font-mono">{portDetail.port.expectedBind || '0.0.0.0'}</span>
                   </div>
-                  <div className="p-3 rounded-lg border border-border bg-surface-2/40">
-                    <span className="text-text-muted">Latency</span>
-                    <p className="font-mono text-text mt-1">
-                      {portDetail.port.latencyMs !== null ? `${portDetail.port.latencyMs} ms` : '—'}
-                    </p>
+                  <div className="p-3 bg-surface-2/50 rounded-lg border border-border">
+                    <span className="text-text-muted block">Process:</span>
+                    <span className="text-text font-mono">{portDetail.port.processName || 'Unknown'} (PID: {portDetail.port.pid || '—'})</span>
                   </div>
-                  <div className="p-3 rounded-lg border border-border bg-surface-2/40">
-                    <span className="text-text-muted">Last Checked</span>
-                    <p className="font-mono text-text mt-1">
-                      {portDetail.port.lastCheckedAt
-                        ? new Date(portDetail.port.lastCheckedAt).toLocaleTimeString()
-                        : 'Never'}
-                    </p>
+                  <div className="p-3 bg-surface-2/50 rounded-lg border border-border">
+                    <span className="text-text-muted block">Server Host:</span>
+                    <span className="text-text font-medium">{portDetail.port.serverName || 'localhost'}</span>
                   </div>
                 </div>
 
                 {/* Inline Notes */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-text">Notes & Description</span>
-                    {!editingNotes ? (
+                <div className="p-3 bg-surface-2/40 border border-border rounded-lg space-y-2 text-xs">
+                  <div className="flex items-center justify-between font-semibold text-text">
+                    <span>Notes & Runbook</span>
+                    {!isViewer && (
                       <button
-                        onClick={() => setEditingNotes(true)}
-                        className="text-primary hover:text-primary/80 text-xs"
+                        onClick={() => setEditingNotes(!editingNotes)}
+                        className="text-primary hover:underline text-[11px]"
                       >
-                        Edit Note
+                        {editingNotes ? 'Cancel' : 'Edit Notes'}
                       </button>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <button onClick={saveNotes} className="text-status-up text-xs font-semibold">
-                          Save
-                        </button>
-                        <button onClick={() => setEditingNotes(false)} className="text-text-muted text-xs">
-                          Cancel
-                        </button>
-                      </div>
                     )}
                   </div>
                   {editingNotes ? (
-                    <textarea
-                      value={notesText}
-                      onChange={(e) => setNotesText(e.target.value)}
-                      className="w-full h-20 p-2 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary"
-                    />
+                    <div className="space-y-2">
+                      <textarea
+                        rows={3}
+                        value={notesText}
+                        onChange={(e) => setNotesText(e.target.value)}
+                        className="w-full p-2 bg-surface border border-border rounded text-text text-xs"
+                      />
+                      <Button variant="primary" size="sm" onClick={saveNotes} className="text-xs">
+                        Save Notes
+                      </Button>
+                    </div>
                   ) : (
-                    <div className="p-3 rounded-lg bg-surface-2/50 border border-border text-xs text-text">
-                      {portDetail.port.notes || 'No custom notes provided.'}
+                    <div className="text-text-muted whitespace-pre-wrap">
+                      {portDetail.port.notes || 'No notes documented for this port.'}
                     </div>
                   )}
                 </div>
 
-                {/* Tags Inline Management */}
+                {/* Tags */}
                 <div className="space-y-2">
                   <span className="text-xs font-semibold text-text">Tags</span>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {portDetail.port.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono bg-surface-2 text-text border border-border"
-                      >
-                        <Tag className="w-3 h-3 opacity-60" />
-                        <span>{tag}</span>
+                    {(portDetail.port.tags || []).map((t) => (
+                      <span key={t} className="px-2 py-0.5 rounded bg-surface-2 text-text text-xs border border-border">
+                        {t}
                       </span>
                     ))}
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        placeholder="+ add tag"
-                        value={newTagInput}
-                        onChange={(e) => setNewTagInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && addTag()}
-                        className="w-24 px-2 py-0.5 rounded bg-surface border border-border text-xs text-text placeholder-text-muted"
-                      />
-                    </div>
+                    {!isViewer && (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          placeholder="Add tag"
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && addTag()}
+                          className="px-2 py-0.5 text-xs bg-surface border border-border rounded w-20"
+                        />
+                        <button onClick={addTag} className="text-xs text-primary hover:underline font-bold">+</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* TAB 2: ROUTES USING THIS PORT */}
+            {/* TAB 2: ROUTES */}
             {activeDrawerTab === 'routes' && (
               <div className="space-y-3">
-                <div className="text-xs text-text-muted font-medium">
+                <div className="text-xs text-text-muted">
                   {portDetail.routes.length} domain routes configured on this port
                 </div>
-                <div className="divide-y divide-border rounded-lg border border-border bg-surface-2/40">
-                  {portDetail.routes.map((route) => (
-                    <div key={route.id} className="p-3 text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-text">{route.domain}</span>
-                        <ActionBadge action={route.action} />
+                <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
+                  {portDetail.routes.map((r) => (
+                    <div key={r.id} className="p-3 bg-surface text-xs space-y-1">
+                      <div className="flex items-center justify-between font-mono font-bold text-text">
+                        <span>{r.domain}{r.path}</span>
+                        <ActionBadge action={r.action} />
                       </div>
-                      <div className="flex items-center justify-between text-text-muted">
-                        <span className="font-mono">{route.path}</span>
-                        <span className="font-mono text-primary truncate max-w-xs">{route.targetRaw}</span>
-                      </div>
-                      {route.backend && (
-                        <div className="text-[11px] text-text-muted">
-                          Target Backend:{' '}
-                          <span className="text-text font-mono">
-                            {route.backend.host}:{route.backend.port}
-                          </span>
+                      {r.backend && (
+                        <div className="text-text-muted text-[11px] font-mono">
+                          Upstream: {r.backend.host}:{r.backend.port}
                         </div>
                       )}
                     </div>
@@ -773,63 +1034,278 @@ export function PortsPage() {
               </div>
             )}
 
-            {/* TAB 3: CHECK HISTORY */}
-            {activeDrawerTab === 'history' && (
-              <div className="space-y-2">
-                <div className="text-xs text-text-muted font-medium">Recent check logs</div>
-                <div className="rounded-lg border border-border bg-surface-2/40 overflow-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-surface-2 text-text-muted text-[11px]">
-                      <tr>
-                        <th className="p-2">Time</th>
-                        <th className="p-2">Status</th>
-                        <th className="p-2">Latency</th>
-                        <th className="p-2">Type</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {portDetail.recentChecks.map((c) => (
-                        <tr key={c.id}>
-                          <td className="p-2 font-mono text-text-muted">
-                            {new Date(c.checkedAt).toLocaleTimeString()}
-                          </td>
-                          <td className="p-2">
-                            <StatusBadge status={c.status} size="sm" />
-                          </td>
-                          <td className="p-2 font-mono">{c.latencyMs ? `${c.latencyMs}ms` : '—'}</td>
-                          <td className="p-2 uppercase text-[10px] text-text-muted">{c.checkType}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* TAB 3: FEATURES (PER-PORT FEATURE SWITCHES) */}
+            {activeDrawerTab === 'features' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-text-muted">
+                    Configure PortWatch behavior and monitoring probes specifically for this port.
+                  </div>
+                  {!isViewer && (
+                    <Button variant="secondary" size="sm" onClick={handleSaveAsPreset} className="text-xs">
+                      Save as Preset
+                    </Button>
+                  )}
+                </div>
+
+                <div className="border border-border rounded-lg divide-y divide-border">
+                  {registryFeatures.map((feat) => {
+                    const existingPortFeature = (portDetail.features || []).find(
+                      (f: any) => f.featureKey === feat.key
+                    );
+                    const isEnabled = existingPortFeature !== undefined ? existingPortFeature.enabled : feat.enabled;
+
+                    return (
+                      <div key={feat.key} className="p-3.5 bg-surface space-y-2 hover:bg-surface-2/30 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-xs font-semibold text-text flex items-center gap-2">
+                              <span>{feat.label}</span>
+                              {!feat.globallyEnabled && (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-2 text-text-muted border border-border">
+                                  Disabled Globally
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-text-muted mt-0.5 line-clamp-2">
+                              {feat.description}
+                            </div>
+                          </div>
+                          {!isViewer && (
+                            <input
+                              type="checkbox"
+                              checked={isEnabled}
+                              onChange={(e) => handleFeatureToggle(feat.key, e.target.checked)}
+                              className="w-4 h-4 rounded text-primary focus:ring-primary ml-3"
+                            />
+                          )}
+                        </div>
+
+                        {/* Feature Status Indicator */}
+                        <div className="text-[11px] font-mono flex items-center gap-2">
+                          <span className={isEnabled ? 'text-status-up' : 'text-text-muted'}>
+                            Status: {isEnabled ? 'ENABLED' : 'DISABLED'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* TAB 4: ISSUES */}
-            {activeDrawerTab === 'issues' && (
-              <div className="space-y-3">
-                {portDetail.issues.length === 0 ? (
-                  <div className="py-8 text-center text-text-muted text-xs">No open issues for this port.</div>
-                ) : (
-                  portDetail.issues.map((issue) => (
-                    <div key={issue.id} className="p-3 rounded-lg border border-border bg-surface-2/60 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-text">{issue.title}</span>
-                        <PriorityBadge priority={issue.priority} />
+            {/* TAB 4: LIFECYCLE (TIMELINE & TRANSITIONS) */}
+            {activeDrawerTab === 'lifecycle' && (
+              <div className="space-y-4">
+                {/* Current Lifecycle Status */}
+                <div className="p-3 bg-surface-2/60 border border-border rounded-lg flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-text-muted block">Current Lifecycle</span>
+                    <span className="text-sm font-bold uppercase text-text">{portDetail.port.lifecycle}</span>
+                    {portDetail.port.lifecycleReason && (
+                      <div className="text-[11px] text-text-muted mt-0.5">
+                        Reason: {portDetail.port.lifecycleReason}
                       </div>
-                      <p className="text-xs text-text-muted">{issue.observed}</p>
-                      <div className="p-2 rounded bg-surface-2 font-mono text-xs text-primary border border-border">
-                        {issue.recommendation}
+                    )}
+                  </div>
+                  <LifecycleBadge lifecycle={portDetail.port.lifecycle} size="md" />
+                </div>
+
+                {/* Transition Quick Actions (Admin Only) */}
+                {!isViewer && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold text-text uppercase tracking-wider">
+                      Change Lifecycle State
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => changeLifecycle('active')}
+                        className="text-xs justify-start"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-status-up" />
+                        Mark Active
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => changeLifecycle('maintenance', true)}
+                        className="text-xs justify-start"
+                      >
+                        <Clock className="w-3.5 h-3.5 mr-1.5 text-status-slow" />
+                        Set Maintenance
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => changeLifecycle('deprecated', true)}
+                        className="text-xs justify-start"
+                      >
+                        <AlertOctagon className="w-3.5 h-3.5 mr-1.5 text-status-down" />
+                        Mark Deprecated
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => changeLifecycle('planned', true)}
+                        className="text-xs justify-start"
+                      >
+                        <Calendar className="w-3.5 h-3.5 mr-1.5 text-status-info" />
+                        Mark Planned
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Lifecycle Event History Timeline */}
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-text uppercase tracking-wider">
+                    Status Events & Lifecycle Timeline
+                  </span>
+                  <div className="border border-border rounded-lg divide-y divide-border max-h-56 overflow-y-auto">
+                    {(portDetail.statusEvents || []).length === 0 ? (
+                      <div className="p-4 text-center text-xs text-text-muted">No status events recorded yet.</div>
+                    ) : (
+                      portDetail.statusEvents.map((ev: any) => (
+                        <div key={ev.id} className="p-3 text-xs bg-surface space-y-1">
+                          <div className="flex items-center justify-between font-medium">
+                            <span className="text-text">
+                              Transition: <span className="uppercase text-text-muted">{ev.fromStatus}</span> → <span className="uppercase font-bold text-primary">{ev.toStatus}</span>
+                            </span>
+                            <span className="text-[11px] text-text-muted">
+                              {new Date(ev.at).toLocaleString()}
+                            </span>
+                          </div>
+                          {ev.details?.reason && (
+                            <div className="text-[11px] text-text-muted">
+                              Reason: {ev.details.reason}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: IMPACT ASSESSMENT */}
+            {activeDrawerTab === 'impact' && (
+              <div className="space-y-4">
+                <div className="p-3 bg-surface-2/60 border border-border rounded-lg text-xs space-y-2">
+                  <div className="font-semibold text-text flex items-center justify-between">
+                    <span>Dependency Blast Radius</span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
+                        portImpact?.warningLevel === 'dangerous'
+                          ? 'bg-status-down/20 text-status-down'
+                          : portImpact?.warningLevel === 'caution'
+                          ? 'bg-status-slow/20 text-status-slow'
+                          : 'bg-status-up/20 text-status-up'
+                      }`}
+                    >
+                      {portImpact?.warningLevel || 'SAFE'}
+                    </span>
+                  </div>
+                  <div className="text-text-muted">
+                    If this port goes down or is removed, {portImpact?.routesCount || 0} routes and {portImpact?.domainsCount || 0} domains lose ingress access.
+                  </div>
+                </div>
+
+                <div className="border border-border rounded-lg divide-y divide-border max-h-64 overflow-y-auto text-xs">
+                  {(portImpact?.routes || []).map((r: any) => (
+                    <div key={r.id} className="p-3 bg-surface flex items-center justify-between">
+                      <span className="font-mono text-text">{r.domain}{r.path}</span>
+                      <span className="text-[11px] text-text-muted uppercase font-bold">{r.action}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 6: CHECKS HISTORY */}
+            {activeDrawerTab === 'history' && (
+              <div className="space-y-3">
+                <div className="text-xs text-text-muted">Last 50 automated TCP/HTTP check results</div>
+                <div className="divide-y divide-border border border-border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+                  {portDetail.recentChecks.map((c) => (
+                    <div key={c.id} className="p-2.5 bg-surface text-xs flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={c.status} size="sm" />
+                        <span className="font-mono text-text-muted">{c.checkType.toUpperCase()}</span>
+                      </div>
+                      <div className="text-text-muted font-mono text-[11px]">
+                        {c.latencyMs ? `${c.latencyMs}ms` : '—'} • {new Date(c.checkedAt).toLocaleTimeString()}
                       </div>
                     </div>
-                  ))
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 7: ISSUES */}
+            {activeDrawerTab === 'issues' && (
+              <div className="space-y-3">
+                <div className="text-xs text-text-muted">
+                  {portDetail.issues.length} active issues linked to this port
+                </div>
+                {portDetail.issues.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-text-muted border border-border rounded-lg">
+                    No active issues on this port.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
+                    {portDetail.issues.map((i) => (
+                      <div key={i.id} className="p-3 bg-surface space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-text">{i.title}</span>
+                          <PriorityBadge priority={i.priority} />
+                        </div>
+                        <p className="text-[11px] text-text-muted">{i.observed}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
           </div>
         )}
       </Drawer>
+
+      {/* Add Port Stepper Dialog */}
+      <AddPortDialog
+        isOpen={isAddPortOpen}
+        onClose={() => setIsAddPortOpen(false)}
+        prefill={addPortPrefill}
+      />
+
+      {/* Remove / Archive Dialog with Impact Assessment */}
+      {removePortTarget && (
+        <RemovePortDialog
+          portId={removePortTarget.id}
+          portNumber={removePortTarget.port}
+          isOpen={!!removePortTarget}
+          onClose={() => setRemovePortTarget(null)}
+          onArchived={handlePortArchived}
+        />
+      )}
+
+      {/* Apply Preset Modal */}
+      <ApplyPresetModal
+        portIds={selectedIds}
+        isOpen={isApplyPresetOpen}
+        onClose={() => {
+          setIsApplyPresetOpen(false);
+          setSelectedIds([]);
+        }}
+      />
+
+      {/* Trash / Archived Items Modal */}
+      <TrashModal
+        isOpen={isTrashOpen}
+        onClose={() => setIsTrashOpen(false)}
+      />
     </div>
   );
 }

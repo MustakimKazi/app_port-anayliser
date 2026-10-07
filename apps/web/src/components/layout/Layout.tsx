@@ -3,10 +3,12 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { CommandPalette } from '../ui/CommandPalette';
+import { AddPortDialog } from '../../features/ports/AddPortDialog';
 
 export function Layout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isAddPortOpen, setIsAddPortOpen] = useState(false);
   const navigate = useNavigate();
 
   // Global keyboard shortcuts (Cmd+K, /, g d, g p, etc.)
@@ -69,14 +71,27 @@ export function Layout() {
 
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${isCollapsed ? 'pl-20' : 'pl-64'}`}>
-        <Header onOpenPalette={() => setIsPaletteOpen(true)} />
+        <Header
+          onOpenPalette={() => setIsPaletteOpen(true)}
+          onOpenAddPort={() => setIsAddPortOpen(true)}
+        />
         <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
       </div>
 
       {/* Global Command Palette */}
-      <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onOpenAddPort={() => setIsAddPortOpen(true)}
+      />
+
+      {/* Global Add Port Dialog */}
+      <AddPortDialog
+        isOpen={isAddPortOpen}
+        onClose={() => setIsAddPortOpen(false)}
+      />
     </div>
   );
 }
