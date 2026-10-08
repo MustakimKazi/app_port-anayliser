@@ -37,8 +37,10 @@ const PortFilterSchema = z.object({
   showArchived: z.string().optional(),
   server: z.string().optional(),
   sort: z.string().optional(),
-  page: z.coerce.number().default(1),
-  limit: z.coerce.number().default(50)
+  // Bounded & finite: ?page=0 / ?limit=Infinity used to reach Prisma/Postgres
+  // as-is and produced HTTP 500
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
+  limit: z.coerce.number().int().min(1).max(1000).default(50)
 });
 
 export async function portsRoutes(fastify: FastifyInstance, opts: { scanner: ScannerService }) {
@@ -46,7 +48,10 @@ export async function portsRoutes(fastify: FastifyInstance, opts: { scanner: Sca
   fastify.get('/ports', async (request: FastifyRequest, reply: FastifyReply) => {
     const parse = PortFilterSchema.safeParse(request.query);
     if (!parse.success) {
-      return reply.status(400).send({ error: parse.error });
+      return reply.status(400).send({
+        error: 'Invalid request parameters',
+        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
+      });
     }
 
     const {

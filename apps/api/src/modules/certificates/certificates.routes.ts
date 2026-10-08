@@ -47,4 +47,33 @@ export async function certificatesRoutes(fastify: FastifyInstance, opts: { scann
 
     return reply.send(sorted);
   });
+
+  // GET /api/certificates/:domain — deep on-demand probe (SANs, serial, fingerprint, chain info)
+  fastify.get<{ Params: { domain: string }; Querystring: { port?: string } }>(
+    '/certificates/:domain',
+    async (request, reply) => {
+      const { domain } = request.params;
+      let port = parseInt(request.query.port || '', 10);
+
+      if (!port || Number.isNaN(port)) {
+        // Resolve port from the DB: an HTTPS route for this domain, else 443
+        const route = await prisma.route.findFirst({
+          where: { domain, protocol: 'HTTPS', archivedAt: null },
+          select: { portNum: true }
+        });
+        port = route?.portNum || 443;
+      }
+
+      const info = await certChecker.check(domain, port, 4000);
+
+      // Attach the domain's known routes so the UI can show what this cert covers
+      const routes = await prisma.route.findMany({
+        where: { domain, archivedAt: null },
+        select: { id: true, path: true, portNum: true, protocol: true, action: true, configFile: { select: { filename: true } } },
+        take: 50
+      });
+
+      return reply.send({ certificate: info, routes });
+    }
+  );
 }

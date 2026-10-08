@@ -32,7 +32,7 @@ export function RoutesPage() {
 
   const { data: currentUser } = useQuery<{ role: string; username: string }>({
     queryKey: ['auth-me'],
-    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'viewer', username: 'guest' })),
     staleTime: 60000
   });
   const isViewer = currentUser?.role === 'viewer';
@@ -524,6 +524,134 @@ export function RoutesPage() {
         onClose={() => setRouteToRemove(null)}
         onArchived={() => setSelectedRouteId(null)}
       />
+    </div>
+  );
+}
+                  <span className="font-mono font-semibold text-text">
+                    {routeDetail.backend.host}:{routeDetail.backend.port}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Generated Nginx Snippet with Copy */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-text flex items-center gap-1.5">
+                  <Code className="w-4 h-4 text-primary" />
+                  <span>Nginx Configuration Preview</span>
+                </span>
+              </div>
+              <CodeBlock code={buildNginxSnippet(routeDetail)} />
+            </div>
+
+            {/* Issues on this route */}
+            {routeDetail.issues && routeDetail.issues.length > 0 && (
+              <div className="p-3 rounded-lg border border-border bg-surface-2/60 space-y-1.5">
+                <span className="text-xs font-semibold text-text flex items-center gap-1.5">
+                  <Shield className="w-4 h-4 text-status-slow" />
+                  <span>Open Issues ({routeDetail.issues.length})</span>
+                </span>
+                {routeDetail.issues.slice(0, 5).map((iss: any) => (
+                  <div key={iss.id} className="flex items-center justify-between text-[11px]">
+                    <span className="text-text-muted truncate">{iss.title}</span>
+                    <span className="font-mono text-text-muted uppercase">{iss.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Notes */}
+            {routeDetail.notes && (
+              <div className="p-3 rounded-lg bg-surface-2/60 border border-border text-xs text-text">
+                <span className="text-text-muted font-semibold block mb-1">Documentation Notes:</span>
+                {routeDetail.notes}
+              </div>
+            )}
+
+            {/* Lifecycle & Archive Actions */}
+            <div className="pt-2 border-t border-border">
+              {routeDetail.archivedAt ? (
+                <div className="p-3 rounded-lg bg-surface-2 border border-border flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-text">This route is archived</div>
+                    <div className="text-[11px] text-text-muted">
+                      Archived on {new Date(routeDetail.archivedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  {!isViewer && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => restoreRouteMutation.mutate(routeDetail.id)}
+                      isLoading={restoreRouteMutation.isPending}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restore Route</span>
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                !isViewer && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setRouteToRemove(routeDetail)}
+                      className="text-xs flex items-center gap-1.5 text-status-down hover:bg-status-down/10 hover:border-status-down/30"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                      <span>Archive / Remove Route</span>
+                    </Button>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
+      </Drawer>
+
+      {/* Add Route Dialog */}
+      <AddRouteDialog
+        isOpen={isAddRouteOpen}
+        onClose={() => setIsAddRouteOpen(false)}
+      />
+
+      {/* Remove Route Modal */}
+      <RemoveRouteModal
+        route={routeToRemove}
+        onClose={() => setRouteToRemove(null)}
+        onArchived={() => setSelectedRouteId(null)}
+      />
+
+      {/* Domain Detail Drawer */}
+      <DomainDrawer
+        domain={selectedDomain}
+        isViewer={isViewer}
+        onClose={() => setSelectedDomain(null)}
+        onOpenRoute={(routeId) => {
+          setSelectedDomain(null);
+          setSelectedRouteId(routeId);
+        }}
+        onDelete={(d) => {
+          setSelectedDomain(null);
+          setDomainToDelete(d);
+        }}
+      />
+
+      {/* Domain Archive / Delete Confirmation */}
+      <DeleteDomainDialog
+        domain={domainToDelete}
+        onClose={() => setDomainToDelete(null)}
+        onDeleted={() => {
+          setSelectedDomain(null);
+          setSelectedRouteId(null);
+        }}
+      />
+
+      {/* Add Domain Wizard */}
+      <AddDomainWizard isOpen={isAddDomainOpen} onClose={() => setIsAddDomainOpen(false)} />
     </div>
   );
 }

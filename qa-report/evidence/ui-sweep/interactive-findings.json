@@ -1,0 +1,127 @@
+[
+  {
+    "sev": "INFO",
+    "area": "ports/search",
+    "detail": "rows with q=nginx: 1, cleared: 21"
+  },
+  {
+    "sev": "INFO",
+    "area": "ports/history",
+    "detail": "filter uses replaceState — history depth unchanged"
+  },
+  {
+    "sev": "MED",
+    "area": "ports/pagination",
+    "detail": "no \"Page X of Y\" label — pagination UI absent"
+  },
+  {
+    "sev": "INFO",
+    "area": "ports/uptime",
+    "detail": "candidate uptime strips: [{\"cls\":\"grid grid-cols-[repeat(24,minmax(0,1fr))] gap-1 h-7\",\"kids\":24,\"tag\":\"DIV\"}]"
+  },
+  {
+    "sev": "LOW",
+    "area": "ports/drawer",
+    "detail": "Escape does not close the port drawer"
+  },
+  {
+    "sev": "MED",
+    "area": "ports/add-modal",
+    "detail": "Add Port button present but no [role=dialog] opened"
+  },
+  {
+    "sev": "INFO",
+    "area": "ports/export",
+    "detail": "export control present, visible=true"
+  },
+  {
+    "sev": "INFO",
+    "area": "issues",
+    "detail": "0 rows"
+  },
+  {
+    "sev": "INFO",
+    "area": "issues/ack",
+    "detail": "no acknowledge button found (may need row expansion)"
+  },
+  {
+    "sev": "INFO",
+    "area": "palette",
+    "detail": "opens with Ctrl+K"
+  },
+  {
+    "sev": "INFO",
+    "area": "palette",
+    "detail": "search results rows: 0"
+  },
+  {
+    "sev": "MED",
+    "area": "palette",
+    "detail": "Enter on \"certificates\" landed on /"
+  },
+  {
+    "sev": "INFO",
+    "area": "shortcuts",
+    "detail": "G , still does nothing (BUG-045 open — expected, unpatched)"
+  },
+  {
+    "sev": "INFO",
+    "area": "shortcuts",
+    "detail": "G P works"
+  },
+  {
+    "sev": "INFO",
+    "area": "theme",
+    "detail": "cycle states: |light  |system  dark|dark"
+  },
+  {
+    "sev": "INFO",
+    "area": "theme",
+    "detail": "after reload: dark|dark"
+  },
+  {
+    "sev": "INFO",
+    "area": "api-fail",
+    "detail": "toasts=0, pulse-skeletons=0, page mentions error=true"
+  },
+  {
+    "sev": "MED",
+    "area": "api-fail",
+    "detail": "no error toast after API 500 (query errors may be silently swallowed)"
+  },
+  {
+    "sev": "INFO",
+    "area": "logout",
+    "detail": "sign out redirects to /login"
+  },
+  {
+    "sev": "INFO",
+    "area": "logout",
+    "detail": "access_token cookie cleared"
+  },
+  {
+    "sev": "INFO",
+    "area": "viewer",
+    "detail": "role badge=viewer; \"Scan Now\" visible=true"
+  },
+  {
+    "sev": "MED",
+    "area": "viewer",
+    "detail": "viewer sees \"Scan Now\" mutation button (BUG-053 still open)"
+  },
+  {
+    "sev": "INFO",
+    "area": "viewer",
+    "detail": "POST /api/ports as viewer -> 403 (403 = API guard OK)"
+  },
+  {
+    "sev": "INFO",
+    "area": "back",
+    "detail": "after one Back: /login"
+  },
+  {
+    "sev": "INFO",
+    "area": "pageerror",
+    "detail": "none across all interactive steps"
+  }
+]

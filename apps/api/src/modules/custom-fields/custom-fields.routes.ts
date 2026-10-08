@@ -24,7 +24,10 @@ export async function customFieldsRoutes(fastify: FastifyInstance) {
   // POST /api/custom-fields - Add new custom field
   fastify.post('/custom-fields', async (request: FastifyRequest, reply: FastifyReply) => {
     const parse = CustomFieldCreateSchema.safeParse(request.body);
-    if (!parse.success) return reply.status(400).send({ error: parse.error });
+    if (!parse.success) return reply.status(400).send({
+        error: 'Invalid request parameters',
+        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
+      });
 
     const data = parse.data;
 

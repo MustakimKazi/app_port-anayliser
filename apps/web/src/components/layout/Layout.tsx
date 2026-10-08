@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, Navigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '../../lib/api';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { CommandPalette } from '../ui/CommandPalette';
@@ -7,6 +9,16 @@ import { AddPortDialog } from '../../features/ports/AddPortDialog';
 
 export function Layout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  // Auth guard: without a valid session every API call returns 401, so route
+  // unauthenticated users to the login page instead of rendering a broken shell
+  const { isError: unauthenticated, isLoading: authChecking } = useQuery({
+    queryKey: ['auth-guard'],
+    queryFn: () => apiRequest('/auth/me'),
+    retry: false,
+    staleTime: 30000
+  });
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isAddPortOpen, setIsAddPortOpen] = useState(false);
   const navigate = useNavigate();
@@ -64,16 +76,37 @@ export function Layout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
+  // Auth guard (declared after ALL hooks — an early return above them would
+  // change the hook count between renders and crash React)
+  if (!authChecking && unauthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-bg text-text flex">
-      {/* Sidebar */}
-      <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
+      {/* Sidebar (off-canvas below lg, fixed rail on lg+) */}
+      <Sidebar
+        isCollapsed={isCollapsed}
+        onToggle={() => setIsCollapsed(!isCollapsed)}
+        mobileOpen={isMobileNavOpen}
+      />
+      {isMobileNavOpen && (
+        <button
+          aria-label="Close navigation menu"
+          onClick={() => setIsMobileNavOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+        />
+      )}
 
-      {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isCollapsed ? 'pl-20' : 'pl-64'}`}>
+      {/* Main Content Area — padding only on lg+ (a fixed pl-64 caused
+          horizontal overflow on 1366px/768px/390px viewports); min-w-0 lets
+          the column shrink so wide tables scroll inside overflow-x-auto
+          instead of stretching the whole page */}
+      <div className={`min-w-0 flex-1 flex flex-col transition-all duration-300 pl-0 ${isCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
         <Header
           onOpenPalette={() => setIsPaletteOpen(true)}
           onOpenAddPort={() => setIsAddPortOpen(true)}
+          onToggleMobileNav={() => setIsMobileNavOpen((v) => !v)}
         />
         <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
           <Outlet />

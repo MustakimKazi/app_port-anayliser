@@ -25,7 +25,7 @@ export function SettingsPage() {
 
   const { data: currentUser } = useQuery<{ role: string; username: string }>({
     queryKey: ['auth-me'],
-    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' })),
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'viewer', username: 'guest' })),
     staleTime: 60000
   });
   const isViewer = currentUser?.role === 'viewer';
@@ -786,6 +786,24 @@ export function SettingsPage() {
                         {new Date(log.createdAt).toLocaleString()}
                       </td>
                       <td className="py-2.5 px-4 font-semibold text-text">{log.username}</td>
+                      <td className="py-2.5 px-4 uppercase text-[11px] font-bold text-primary">
+                        {log.action}
+                      </td>
+                      <td className="py-2.5 px-4 text-text">{log.entity}</td>
+                      <td className="py-2.5 px-4 font-mono text-text-muted text-[11px]">
+                        {log.entityId || '—'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
                       <td className="py-2.5 px-4 uppercase text-[11px] font-bold text-primary">
                         {log.action}
                       </td>

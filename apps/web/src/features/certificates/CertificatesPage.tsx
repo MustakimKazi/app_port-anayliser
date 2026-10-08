@@ -1,16 +1,106 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Shield, ShieldAlert, ShieldCheck, Clock, ExternalLink, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  Clock,
+  RefreshCw,
+  Globe,
+  Copy,
+  Check
+} from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { Drawer } from '../../components/ui/Drawer';
+import { ActionBadge } from '../../components/ui/Badge';
 import { CertificateInfo } from '../../types';
 
+interface CertDetailResponse {
+  certificate: CertificateInfo;
+  routes: Array<{
+    id: string;
+    path: string;
+    portNum: number | null;
+    protocol: string;
+    action: string;
+    configFile?: { filename: string } | null;
+  }>;
+}
+
+function statusColor(c: CertificateInfo): { text: string; bg: string; border: string; bar: string } {
+  if (c.daysRemaining <= 7)
+    return { text: 'text-status-down', bg: 'bg-status-down/10', border: 'border-status-down/30', bar: 'bg-status-down' };
+  if (c.daysRemaining <= 30)
+    return { text: 'text-status-slow', bg: 'bg-status-slow/10', border: 'border-status-slow/30', bar: 'bg-status-slow' };
+  return { text: 'text-status-up', bg: 'bg-status-up/10', border: 'border-status-up/30', bar: 'bg-status-up' };
+}
+
+function CopyableField({ label, value, mono = true }: { label: string; value?: string | null; mono?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  if (!value) return null;
+  return (
+    <div className="p-3 rounded-lg border border-border bg-surface-2/60">
+      <span className="text-text-muted">{label}</span>
+      <div className="flex items-start justify-between gap-2 mt-1">
+        <p className={`${mono ? 'font-mono' : ''} text-text text-[11px] break-all`}>{value}</p>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          className="p-1 rounded text-text-muted hover:text-text hover:bg-surface transition-colors shrink-0"
+          title={`Copy ${label}`}
+          aria-label={`Copy ${label}`}
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-status-up" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function CertificatesPage() {
+  const queryClient = useQueryClient();
   const { data: certs = [], isLoading, refetch, isRefetching } = useQuery<CertificateInfo[]>({
     queryKey: ['certificates'],
     queryFn: () => apiRequest('/certificates')
   });
+
+  const [selected, setSelected] = useState<CertificateInfo | null>(null);
+
+  const detailQuery = useQuery<CertDetailResponse>({
+    queryKey: ['cert-detail', selected?.domain, selected?.port],
+    queryFn: () =>
+      apiRequest(
+        `/certificates/${encodeURIComponent(selected!.domain)}?port=${selected!.port}`
+      ),
+    enabled: !!selected
+  });
+
+  const reprobe = useMutation({
+    mutationFn: () =>
+      apiRequest(
+        `/certificates/${encodeURIComponent(selected!.domain)}?port=${selected!.port}`
+      ),
+    onSuccess: (data) => {
+      if (selected) {
+        queryClient.setQueryData(['cert-detail', selected.domain, selected.port], data);
+      }
+      refetch();
+    }
+  });
+
+  const detail = detailQuery.data?.certificate;
+  const coveredRoutes = detailQuery.data?.routes || [];
+  const colors = detail ? statusColor(detail) : null;
+  const validityTotal =
+    detail && detail.validFrom && detail.validTo
+      ? Math.max(1, (new Date(detail.validTo).getTime() - new Date(detail.validFrom).getTime()) / 86400000)
+      : 90;
+  const percentLeft = detail ? Math.min(100, Math.max(0, Math.round((detail.daysRemaining / validityTotal) * 100))) : 0;
 
   return (
     <div className="space-y-6">
@@ -88,7 +178,12 @@ export function CertificatesPage() {
                 const isWarning = c.daysRemaining <= 30 && !isCritical;
 
                 return (
-                  <tr key={`${c.domain}-${c.port}`} className="hover:bg-surface-2/60 transition-colors">
+                  <tr
+                    key={`${c.domain}-${c.port}`}
+                    onClick={() => setSelected(c)}
+                    className="hover:bg-surface-2/60 transition-colors cursor-pointer"
+                    data-testid="cert-row"
+                  >
                     <td className="py-3 px-4 font-mono font-bold text-text flex items-center gap-2">
                       <Shield className={`w-4 h-4 ${isCritical ? 'text-status-down' : isWarning ? 'text-status-slow' : 'text-status-up'}`} />
                       <span>{c.domain}</span>
@@ -116,10 +211,216 @@ export function CertificatesPage() {
                   </tr>
                 );
               })}
+              {!isLoading && certs.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-text-muted">
+                    No HTTPS routes found — certificates appear after a scan or manual inspection.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {/* Detail Drawer */}
+      <Drawer
+        isOpen={!!selected}
+        onClose={() => setSelected(null)}
+        title={
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            <span className="font-mono">{selected?.domain}</span>
+          </div>
+        }
+        subtitle={selected ? `TLS certificate on port :${selected.port}` : undefined}
+      >
+        {detailQuery.isLoading && (
+          <div className="space-y-4 animate-pulse" data-testid="cert-detail-loading">
+            <div className="h-20 rounded-xl bg-surface-2" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="h-16 rounded-lg bg-surface-2" />
+              <div className="h-16 rounded-lg bg-surface-2" />
+              <div className="h-16 rounded-lg bg-surface-2" />
+              <div className="h-16 rounded-lg bg-surface-2" />
+            </div>
+          </div>
+        )}
+
+        {detailQuery.isError && (
+          <div className="p-4 rounded-xl border border-status-down/30 bg-status-down/10 text-xs text-text space-y-2" data-testid="cert-detail-error">
+            <div className="font-semibold text-status-down">Failed to probe certificate</div>
+            <div className="text-text-muted">
+              {(detailQuery.error as Error)?.message || 'The host did not return a TLS certificate.'}
+            </div>
+            <Button variant="secondary" size="sm" className="text-xs" onClick={() => reprobe.mutate()} isLoading={reprobe.isPending}>
+              <span>Retry probe</span>
+            </Button>
+          </div>
+        )}
+
+        {detail && colors && (
+          <div className="space-y-6" data-testid="cert-detail-body">
+            {/* Status + countdown */}
+            <div className={`p-4 rounded-xl border ${colors.border} ${colors.bg} space-y-3`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-sm font-bold ${colors.text}`}>
+                  {detail.status === 'error'
+                    ? 'Probe failed'
+                    : detail.daysRemaining <= 0
+                      ? 'Certificate expired'
+                      : detail.daysRemaining <= 7
+                        ? 'Critical — expiring within 7 days'
+                        : detail.daysRemaining <= 30
+                          ? 'Expiring soon — within 30 days'
+                          : 'Valid'}
+                </span>
+                <span className={`font-mono text-lg font-bold ${colors.text}`}>
+                  {detail.daysRemaining} days left
+                </span>
+              </div>
+
+              {/* Countdown bar */}
+              <div className="w-full bg-surface-2 rounded-full h-3 overflow-hidden border border-border" role="progressbar"
+                aria-valuenow={percentLeft} aria-valuemin={0} aria-valuemax={100}
+                aria-label="Certificate validity remaining">
+                <div className={`h-full transition-all duration-500 ${colors.bar}`} style={{ width: `${percentLeft}%` }} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-lg bg-surface-2/60 border border-border">
+                  <span className="text-text-muted">Valid From</span>
+                  <p className="font-mono text-text mt-1">
+                    {detail.validFrom ? new Date(detail.validFrom).toLocaleString() : '—'}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-surface-2/60 border border-border">
+                  <span className="text-text-muted">Expires On</span>
+                  <p className={`font-mono font-bold mt-1 ${colors.text}`}>
+                    {detail.validTo ? new Date(detail.validTo).toLocaleString() : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Issuer / subject / TLS info */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-lg border border-border bg-surface-2/60">
+                <span className="text-text-muted">Subject (CN)</span>
+                <p className="font-mono text-text mt-1 break-all">{detail.subject}</p>
+              </div>
+              <div className="p-3 rounded-lg border border-border bg-surface-2/60">
+                <span className="text-text-muted">Issuer</span>
+                <p className="font-mono text-text mt-1 break-all">{detail.issuer}</p>
+              </div>
+              <div className="p-3 rounded-lg border border-border bg-surface-2/60">
+                <span className="text-text-muted">TLS Protocol</span>
+                <p className="font-mono text-text mt-1">{detail.protocol || '—'}</p>
+              </div>
+              <div className="p-3 rounded-lg border border-border bg-surface-2/60">
+                <span className="text-text-muted">Cipher</span>
+                <p className="font-mono text-text mt-1 break-all">{detail.cipher || '—'}</p>
+              </div>
+              <div className="p-3 rounded-lg border border-border bg-surface-2/60">
+                <span className="text-text-muted">Signature Algorithm</span>
+                <p className="font-mono text-text mt-1 break-all">{detail.signatureAlgorithm || '—'}</p>
+              </div>
+              <div className="p-3 rounded-lg border border-border bg-surface-2/60">
+                <span className="text-text-muted">Serial Number</span>
+                <p className="font-mono text-text mt-1 break-all">{detail.serialNumber || '—'}</p>
+              </div>
+            </div>
+
+            {/* SANs */}
+            <div className="p-4 rounded-xl border border-border bg-surface-2/40 space-y-2">
+              <span className="text-xs font-semibold text-text">Subject Alternative Names</span>
+              {detail.san ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {detail.san
+                    .split(',')
+                    .map((s) => s.trim().replace(/^DNS:/i, ''))
+                    .filter(Boolean)
+                    .map((s) => (
+                      <span
+                        key={s}
+                        className="px-2 py-0.5 rounded bg-surface-2 border border-border font-mono text-[11px] text-text"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted">No SAN extension reported.</p>
+              )}
+            </div>
+
+            {/* Fingerprint */}
+            <div className="grid grid-cols-1 gap-3 text-xs">
+              <CopyableField label="SHA-256 Fingerprint" value={detail.fingerprint256} />
+            </div>
+
+            {/* Covered routes */}
+            <div className="p-4 rounded-xl border border-border bg-surface-2/40 space-y-2">
+              <span className="text-xs font-semibold text-text flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-primary" />
+                <span>Routes Covered by this Certificate ({coveredRoutes.length})</span>
+              </span>
+              {coveredRoutes.length > 0 ? (
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-surface-2 text-[10px] uppercase text-text-muted">
+                      <tr>
+                        <th className="py-2 px-3">Path</th>
+                        <th className="py-2 px-3">Port</th>
+                        <th className="py-2 px-3">Action</th>
+                        <th className="py-2 px-3">Config File</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {coveredRoutes.map((r) => (
+                        <tr key={r.id}>
+                          <td className="py-2 px-3 font-mono text-text">{r.path}</td>
+                          <td className="py-2 px-3 font-mono text-text-muted">
+                            {r.portNum ? `:${r.portNum}` : '—'}
+                          </td>
+                          <td className="py-2 px-3">
+                            <ActionBadge action={r.action as any} />
+                          </td>
+                          <td className="py-2 px-3 font-mono text-text-muted">
+                            {r.configFile?.filename || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted">No active routes found for this domain.</p>
+              )}
+            </div>
+
+            {detail.error && (
+              <div className="p-3 rounded-lg bg-status-down/10 border border-status-down/30 text-xs text-status-down">
+                Probe error: {detail.error}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="pt-2 border-t border-border flex justify-end">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="text-xs flex items-center gap-1.5"
+                onClick={() => reprobe.mutate()}
+                isLoading={reprobe.isPending}
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Re-probe Certificate</span>
+              </Button>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

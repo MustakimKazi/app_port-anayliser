@@ -280,7 +280,24 @@ export function parseWorkbook(wb: xlsx.WorkBook): ParsedWorkbookData {
       };
     });
 
-  return { configFiles, ports, backends, routes, issues };
+  const parsed = { configFiles, ports, backends, routes, issues };
+  const totalRows =
+    parsed.configFiles.length +
+    parsed.ports.length +
+    parsed.backends.length +
+    parsed.routes.length +
+    parsed.issues.length;
+
+  if (totalRows === 0) {
+    const err: any = new Error(
+      'Workbook contains no importable rows (expected sheets such as ' +
+        '"Config Files", "Port Summary", "Domain Map"). Import aborted — nothing was changed.'
+    );
+    err.code = 'EMPTY_WORKBOOK';
+    throw err;
+  }
+
+  return parsed;
 }
 
 export async function importParsedData(
@@ -433,8 +450,14 @@ export async function importParsedData(
   }
 
   // Step 5: Routes (Domain Map - 106 rows)
-  // Delete existing imported routes to allow clean idempotency while maintaining FKs
-  await prisma.route.deleteMany({});
+  // Replace only the routes contained in this workbook (matched by rowNum) so a
+  // partial or empty import can never wipe rows that were not re-imported.
+  const importedRowNums = data.routes.map((r) => r.rowNum);
+  if (importedRowNums.length > 0) {
+    await prisma.route.deleteMany({ where: { rowNum: { in: importedRowNums } } });
+  } else {
+    warnings.push('Workbook had no Domain Map rows — existing routes were left untouched');
+  }
 
   for (const r of data.routes) {
     const portId = r.portNum !== null ? portMap.get(r.portNum) || null : null;

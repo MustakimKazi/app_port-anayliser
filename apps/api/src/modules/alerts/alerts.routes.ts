@@ -113,3 +113,107 @@ export async function alertsRoutes(fastify: FastifyInstance) {
     return reply.send(updated);
   });
 }
+  return clone;
+}
+
+  // GET & PATCH /api/settings
+  fastify.get('/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+    const setting = await prisma.setting.findUnique({
+      where: { id: 'global' }
+    });
+    return reply.send(maskSetting(setting));
+  });
+
+  fastify.patch('/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const current = await prisma.setting.findUnique({ where: { id: 'global' } });
+
+    let slackDiscordWebhook = undefined;
+    if (body.slackDiscordWebhook !== undefined) {
+      if (body.slackDiscordWebhook === null || body.slackDiscordWebhook === '') {
+        slackDiscordWebhook = null;
+      } else if (isMaskedValue(body.slackDiscordWebhook)) {
+        slackDiscordWebhook = current?.slackDiscordWebhook || null;
+      } else {
+        slackDiscordWebhook = body.slackDiscordWebhook;
+      }
+    }
+
+    let genericWebhook = undefined;
+    if (body.genericWebhook !== undefined) {
+      if (body.genericWebhook === null || body.genericWebhook === '') {
+        genericWebhook = null;
+      } else if (isMaskedValue(body.genericWebhook)) {
+        genericWebhook = current?.genericWebhook || null;
+      } else {
+        genericWebhook = body.genericWebhook;
+      }
+    }
+
+    let telegramConfig = undefined;
+    if (body.telegramConfig !== undefined) {
+      if (body.telegramConfig === null || body.telegramConfig === '') {
+        telegramConfig = null;
+      } else if (typeof body.telegramConfig === 'object') {
+        const existingTg = (current?.telegramConfig as any) || {};
+        const botToken = isMaskedValue(body.telegramConfig.botToken)
+          ? existingTg.botToken
+          : body.telegramConfig.botToken;
+        telegramConfig = { ...body.telegramConfig, botToken };
+      } else {
+        telegramConfig = body.telegramConfig;
+      }
+    }
+
+    let smtpConfig = undefined;
+    if (body.smtpConfig !== undefined) {
+      if (body.smtpConfig === null || body.smtpConfig === '') {
+        smtpConfig = null;
+      } else if (typeof body.smtpConfig === 'object') {
+        const existingSmtp = (current?.smtpConfig as any) || {};
+        const password = isMaskedValue(body.smtpConfig.password)
+          ? existingSmtp.password
+          : body.smtpConfig.password;
+        smtpConfig = { ...body.smtpConfig, password };
+      } else {
+        smtpConfig = body.smtpConfig;
+      }
+    }
+
+    const updated = await prisma.setting.upsert({
+      where: { id: 'global' },
+      update: {
+        scanIntervalSec: body.scanIntervalSec !== undefined ? parseInt(body.scanIntervalSec) : undefined,
+        tcpTimeoutMs: body.tcpTimeoutMs !== undefined ? parseInt(body.tcpTimeoutMs) : undefined,
+        slowThresholdMs: body.slowThresholdMs !== undefined ? parseInt(body.slowThresholdMs) : undefined,
+        concurrencyLimit: body.concurrencyLimit !== undefined ? parseInt(body.concurrencyLimit) : undefined,
+        retentionDays: body.retentionDays !== undefined ? parseInt(body.retentionDays) : undefined,
+        slackDiscordWebhook,
+        genericWebhook,
+        telegramConfig,
+        smtpConfig
+      },
+      create: {
+        id: 'global',
+        scanIntervalSec: body.scanIntervalSec ? parseInt(body.scanIntervalSec) : 30,
+        tcpTimeoutMs: body.tcpTimeoutMs ? parseInt(body.tcpTimeoutMs) : 3000,
+        slowThresholdMs: body.slowThresholdMs ? parseInt(body.slowThresholdMs) : 1500,
+        concurrencyLimit: body.concurrencyLimit ? parseInt(body.concurrencyLimit) : 20,
+        retentionDays: body.retentionDays ? parseInt(body.retentionDays) : 90,
+        slackDiscordWebhook: slackDiscordWebhook || null,
+        genericWebhook: genericWebhook || null,
+        telegramConfig: telegramConfig || null,
+        smtpConfig: smtpConfig || null
+      }
+    });
+
+    // Notify scanner to dynamically apply updated parameters (BUG-030)
+    if (opts?.scanner) {
+      await opts.scanner.reloadSettings().catch((err) => {
+        request.log.error({ err }, 'Failed to reload scanner settings');
+      });
+    }
+
+    return reply.send(maskSetting(updated));
+  });
+}

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect } from "react";
+import { X } from "lucide-react";
 
 interface DrawerProps {
   isOpen: boolean;
@@ -16,14 +16,14 @@ export function Drawer({
   title,
   subtitle,
   children,
-  width = 'max-w-2xl'
+  width = "max-w-2xl",
 }: DrawerProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
+      if (e.key === "Escape" && isOpen) onClose();
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -43,8 +43,12 @@ export function Drawer({
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface">
             <div>
-              <h2 className="text-lg font-semibold text-text flex items-center gap-2">{title}</h2>
-              {subtitle && <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>}
+              <h2 className="text-lg font-semibold text-text flex items-center gap-2">
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>
+              )}
             </div>
             <button
               onClick={onClose}

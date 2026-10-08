@@ -72,8 +72,8 @@ The scanner engine in `apps/api/src/scanner/` is fully modular:
 ## 5. Development Workflow & Testing
 
 ```bash
-# Start development database
-docker compose up -d db
+# Ensure the development database is running (native PostgreSQL 18)
+systemctl status postgresql
 
 # Run database migrations and seed
 npm run prisma:push

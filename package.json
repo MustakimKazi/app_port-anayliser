@@ -16,7 +16,9 @@
     "check:no-literals": "tsx scripts/check-no-literals.ts",
     "prisma:generate": "npm run prisma:generate --workspace=@portwatch/api",
     "prisma:push": "npm run prisma:push --workspace=@portwatch/api",
-    "prisma:migrate": "npm run prisma:migrate --workspace=@portwatch/api"
+    "prisma:migrate": "npm run prisma:migrate --workspace=@portwatch/api",
+    "db:dump": "bash scripts/db-dump.sh",
+    "db:restore": "bash scripts/db-restore.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

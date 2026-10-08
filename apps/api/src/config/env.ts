@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 import path from 'path';
 
 // Load .env from candidate paths (cwd, parent dirs)
@@ -12,12 +13,22 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = defaultDbUrl;
 }
 
+const isProduction = (process.env.NODE_ENV || 'development') === 'production';
+if (!process.env.JWT_SECRET && isProduction) {
+  throw new Error(
+    'JWT_SECRET must be set when NODE_ENV=production. Generate one with: openssl rand -hex 32'
+  );
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '3100', 10),
   host: process.env.HOST || '0.0.0.0',
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl: process.env.DATABASE_URL,
-  jwtSecret: process.env.JWT_SECRET || 'super-secret-jwt-key-portwatch-2026-very-secure',
+  // Never ship a fixed fallback secret: production requires an explicit
+  // JWT_SECRET, development gets a random per-process secret (sessions are
+  // invalidated on restart instead of being forgeable by anyone with the repo).
+  jwtSecret: process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex'),
   adminUsername: process.env.ADMIN_USERNAME || 'admin',
   adminPassword: process.env.ADMIN_PASSWORD || 'admin',
   adminEmail: process.env.ADMIN_EMAIL || 'admin@leadowserver.local',

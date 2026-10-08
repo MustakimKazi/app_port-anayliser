@@ -2,7 +2,12 @@ import net from 'net';
 
 export interface TCPCheckResult {
   status: 'up' | 'down' | 'slow';
-  latencyMs: number;
+  /**
+   * Round-trip time of a SUCCESSFUL connection. `null` for failed checks:
+   * a connection that never completed has no meaningful latency, and storing
+   * "latency for a down port" corrupts uptime/latency reporting.
+   */
+  latencyMs: number | null;
   error?: string;
 }
 
@@ -26,7 +31,9 @@ export class TCPChecker {
       const finish = (status: 'up' | 'down' | 'slow', err?: string) => {
         if (resolved) return;
         resolved = true;
-        const latencyMs = Math.round(performance.now() - startTime);
+        // Only successful checks (up/slow) report a latency value
+        const latencyMs =
+          status === 'down' ? null : Math.round(performance.now() - startTime);
         socket.destroy();
         resolve({
           status,

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   X,
   Check,
@@ -14,13 +14,18 @@ import {
   Plus,
   ArrowRight,
   ArrowLeft,
-  Upload
-} from 'lucide-react';
-import { apiRequest } from '../../lib/api';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { LifecycleBadge } from '../../components/ui/Badge';
-import { Server as ServerType, Backend as BackendType, FeaturePreset, FeatureItem } from '../../types';
+  Upload,
+} from "lucide-react";
+import { apiRequest } from "../../lib/api";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { LifecycleBadge } from "../../components/ui/Badge";
+import {
+  Server as ServerType,
+  Backend as BackendType,
+  FeaturePreset,
+  FeatureItem,
+} from "../../types";
 
 interface AddPortDialogProps {
   isOpen: boolean;
@@ -33,80 +38,96 @@ interface AddPortDialogProps {
   };
 }
 
-export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) {
+export function AddPortDialog({
+  isOpen,
+  onClose,
+  prefill,
+}: AddPortDialogProps) {
   const queryClient = useQueryClient();
 
-  const [mode, setMode] = useState<'single' | 'range' | 'paste'>('single');
+  const [mode, setMode] = useState<"single" | "range" | "paste">("single");
   const [step, setStep] = useState<number>(1);
 
   // Form State - Basics
-  const [portNum, setPortNum] = useState<string>('');
-  const [layer, setLayer] = useState<'http' | 'stream'>('http');
-  const [protocol, setProtocol] = useState<'HTTP' | 'HTTPS' | 'TCP' | 'UDP'>('HTTP');
-  const [purpose, setPurpose] = useState<string>('');
-  const [serverId, setServerId] = useState<string>('');
-  const [newServerName, setNewServerName] = useState<string>('');
+  const [portNum, setPortNum] = useState<string>("");
+  const [layer, setLayer] = useState<"http" | "stream">("http");
+  const [protocol, setProtocol] = useState<"HTTP" | "HTTPS" | "TCP" | "UDP">(
+    "HTTP",
+  );
+  const [purpose, setPurpose] = useState<string>("");
+  const [serverId, setServerId] = useState<string>("");
+  const [newServerName, setNewServerName] = useState<string>("");
   const [isAddingServerInline, setIsAddingServerInline] = useState(false);
-  const [lifecycle, setLifecycle] = useState<'active' | 'planned' | 'reserved' | 'maintenance' | 'deprecated'>('active');
-  const [lifecycleReason, setLifecycleReason] = useState<string>('');
-  const [targetDate, setTargetDate] = useState<string>('');
-  const [owner, setOwner] = useState<string>('');
-  const [maintenanceFrom, setMaintenanceFrom] = useState<string>('');
-  const [maintenanceTo, setMaintenanceTo] = useState<string>('');
+  const [lifecycle, setLifecycle] = useState<
+    "active" | "planned" | "reserved" | "maintenance" | "deprecated"
+  >("active");
+  const [lifecycleReason, setLifecycleReason] = useState<string>("");
+  const [targetDate, setTargetDate] = useState<string>("");
+  const [owner, setOwner] = useState<string>("");
+  const [maintenanceFrom, setMaintenanceFrom] = useState<string>("");
+  const [maintenanceTo, setMaintenanceTo] = useState<string>("");
 
   // Form State - Network
-  const [expectedBind, setExpectedBind] = useState<string>('0.0.0.0');
+  const [expectedBind, setExpectedBind] = useState<string>("0.0.0.0");
   const [isPublic, setIsPublic] = useState<boolean>(true);
-  const [processName, setProcessName] = useState<string>('');
+  const [processName, setProcessName] = useState<string>("");
 
   // Form State - Attach (optional initial route)
   const [attachRoute, setAttachRoute] = useState<boolean>(false);
-  const [routeDomain, setRouteDomain] = useState<string>('');
-  const [routePath, setRoutePath] = useState<string>('/');
-  const [routeAction, setRouteAction] = useState<string>('Proxy');
-  const [backendHost, setBackendHost] = useState<string>('127.0.0.1');
-  const [backendPort, setBackendPort] = useState<string>('');
-  const [selectedBackendId, setSelectedBackendId] = useState<string>('');
+  const [routeDomain, setRouteDomain] = useState<string>("");
+  const [routePath, setRoutePath] = useState<string>("/");
+  const [routeAction, setRouteAction] = useState<string>("Proxy");
+  const [backendHost, setBackendHost] = useState<string>("127.0.0.1");
+  const [backendPort, setBackendPort] = useState<string>("");
+  const [selectedBackendId, setSelectedBackendId] = useState<string>("");
 
   // Form State - Features
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
-  const [featuresConfig, setFeaturesConfig] = useState<Record<string, { enabled: boolean; config?: any }>>({});
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
+  const [featuresConfig, setFeaturesConfig] = useState<
+    Record<string, { enabled: boolean; config?: any }>
+  >({});
 
   // Bulk State
-  const [portRange, setPortRange] = useState<string>('3000-3010');
-  const [pasteText, setPasteText] = useState<string>('');
+  const [portRange, setPortRange] = useState<string>("3000-3010");
+  const [pasteText, setPasteText] = useState<string>("");
   const [bulkPreview, setBulkPreview] = useState<any>(null);
 
   // Conflict validation state
   const [validationResult, setValidationResult] = useState<{
     valid: boolean;
-    warnings: Array<{ code: string; message: string; severity: 'error' | 'warning' | 'info'; existingPortId?: string; suggestedPreset?: string }>;
+    warnings: Array<{
+      code: string;
+      message: string;
+      severity: "error" | "warning" | "info";
+      existingPortId?: string;
+      suggestedPreset?: string;
+    }>;
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
   // Queries
   const { data: servers = [] } = useQuery<ServerType[]>({
-    queryKey: ['servers'],
-    queryFn: () => apiRequest('/servers'),
-    enabled: isOpen
+    queryKey: ["servers"],
+    queryFn: () => apiRequest("/servers"),
+    enabled: isOpen,
   });
 
   const { data: backends = [] } = useQuery<BackendType[]>({
-    queryKey: ['backends'],
-    queryFn: () => apiRequest('/backends'),
-    enabled: isOpen && attachRoute
+    queryKey: ["backends"],
+    queryFn: () => apiRequest("/backends"),
+    enabled: isOpen && attachRoute,
   });
 
   const { data: presets = [] } = useQuery<FeaturePreset[]>({
-    queryKey: ['feature-presets'],
-    queryFn: () => apiRequest('/feature-presets'),
-    enabled: isOpen
+    queryKey: ["feature-presets"],
+    queryFn: () => apiRequest("/feature-presets"),
+    enabled: isOpen,
   });
 
   const { data: registryFeatures = [] } = useQuery<FeatureItem[]>({
-    queryKey: ['features-registry'],
-    queryFn: () => apiRequest('/features/registry'),
-    enabled: isOpen
+    queryKey: ["features-registry"],
+    queryFn: () => apiRequest("/features/registry"),
+    enabled: isOpen,
   });
 
   // Handle prefill
@@ -116,7 +137,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
       if (prefill.processName) setProcessName(prefill.processName);
       if (prefill.bindAddress) {
         setExpectedBind(prefill.bindAddress);
-        setIsPublic(prefill.bindAddress === '0.0.0.0' || prefill.bindAddress === '::');
+        setIsPublic(
+          prefill.bindAddress === "0.0.0.0" || prefill.bindAddress === "::",
+        );
       }
       if (prefill.lifecycle) setLifecycle(prefill.lifecycle as any);
     }
@@ -124,18 +147,18 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
   // Adjust layer / protocol defaults
   useEffect(() => {
-    if (layer === 'http') {
-      if (protocol === 'TCP' || protocol === 'UDP') setProtocol('HTTP');
+    if (layer === "http") {
+      if (protocol === "TCP" || protocol === "UDP") setProtocol("HTTP");
     } else {
-      if (protocol === 'HTTP' || protocol === 'HTTPS') setProtocol('TCP');
+      if (protocol === "HTTP" || protocol === "HTTPS") setProtocol("TCP");
     }
   }, [layer]);
 
   // When bind changes, default isPublic
   useEffect(() => {
-    if (expectedBind === '127.0.0.1' || expectedBind === 'localhost') {
+    if (expectedBind === "127.0.0.1" || expectedBind === "localhost") {
       setIsPublic(false);
-    } else if (expectedBind === '0.0.0.0' || expectedBind === '::') {
+    } else if (expectedBind === "0.0.0.0" || expectedBind === "::") {
       setIsPublic(true);
     }
   }, [expectedBind]);
@@ -144,16 +167,19 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
   useEffect(() => {
     if (selectedPresetId) {
       const preset = presets.find((p) => p.id === selectedPresetId);
-      if (preset && typeof preset.features === 'object') {
+      if (preset && typeof preset.features === "object") {
         setFeaturesConfig(preset.features);
       }
-    } else if (registryFeatures.length > 0 && Object.keys(featuresConfig).length === 0) {
+    } else if (
+      registryFeatures.length > 0 &&
+      Object.keys(featuresConfig).length === 0
+    ) {
       const initial: Record<string, { enabled: boolean; config?: any }> = {};
       for (const feat of registryFeatures) {
-        const isPlanned = lifecycle === 'planned' || lifecycle === 'reserved';
+        const isPlanned = lifecycle === "planned" || lifecycle === "reserved";
         initial[feat.key] = {
           enabled: isPlanned ? false : feat.enabled,
-          config: { ...feat.defaultConfig }
+          config: { ...feat.defaultConfig },
         };
       }
       setFeaturesConfig(initial);
@@ -167,15 +193,18 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
       const timer = setTimeout(async () => {
         try {
           setIsValidating(true);
-          const res = await apiRequest('/ports/validate', {
-            method: 'POST',
+          const res = await apiRequest("/ports/validate", {
+            method: "POST",
             body: JSON.stringify({
               port: p,
               serverId: serverId || null,
               expectedBind,
               isPublic,
-              initialRoute: attachRoute && backendPort ? { backendPort, backendHost } : null
-            })
+              initialRoute:
+                attachRoute && backendPort
+                  ? { backendPort, backendHost }
+                  : null,
+            }),
           });
           setValidationResult(res);
         } catch (e) {
@@ -188,7 +217,15 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
     } else {
       setValidationResult(null);
     }
-  }, [portNum, serverId, expectedBind, isPublic, attachRoute, backendPort, backendHost]);
+  }, [
+    portNum,
+    serverId,
+    expectedBind,
+    isPublic,
+    attachRoute,
+    backendPort,
+    backendHost,
+  ]);
 
   // Toggle single feature
   const toggleFeature = (key: string, enabled: boolean) => {
@@ -196,8 +233,8 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
       ...prev,
       [key]: {
         ...(prev[key] || {}),
-        enabled
-      }
+        enabled,
+      },
     }));
   };
 
@@ -220,37 +257,37 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
         expectedBind,
         isPublic,
         processName: processName || null,
-        features: featuresConfig
+        features: featuresConfig,
       };
 
       if (attachRoute && routeDomain) {
         payload.initialRoute = {
           domain: routeDomain,
-          path: routePath || '/',
+          path: routePath || "/",
           action: routeAction,
           backendId: selectedBackendId || null,
           backendHost,
-          backendPort
+          backendPort,
         };
       }
 
-      const res = await apiRequest('/ports', {
-        method: 'POST',
-        body: JSON.stringify(payload)
+      const res = await apiRequest("/ports", {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
       return { res, saveAndAnother };
     },
     onSuccess: ({ saveAndAnother }) => {
-      queryClient.invalidateQueries({ queryKey: ['ports'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ["ports"] });
+      queryClient.invalidateQueries({ queryKey: ["overview"] });
       if (saveAndAnother) {
-        setPortNum('');
-        setPurpose('');
+        setPortNum("");
+        setPurpose("");
         setStep(1);
       } else {
         onClose();
       }
-    }
+    },
   });
 
   // Bulk Range / Paste preview
@@ -263,36 +300,36 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
         purpose,
         lifecycle,
         serverId: serverId || null,
-        presetId: selectedPresetId || null
+        presetId: selectedPresetId || null,
       };
 
-      if (mode === 'range') {
+      if (mode === "range") {
         payload.portRange = portRange;
       } else {
         // Parse CSV or newline lines
         const lines = pasteText
-          .split('\n')
+          .split("\n")
           .map((l) => l.trim())
           .filter(Boolean);
         const parsedList = lines.map((line) => {
-          const parts = line.split(',').map((p) => p.trim());
+          const parts = line.split(",").map((p) => p.trim());
           return {
             port: parts[0],
             layer: parts[1] || layer,
             protocol: parts[2] || protocol,
-            purpose: parts[3] || purpose
+            purpose: parts[3] || purpose,
           };
         });
         payload.portsList = parsedList;
       }
 
-      const res = await apiRequest('/ports/bulk', {
-        method: 'POST',
-        body: JSON.stringify(payload)
+      const res = await apiRequest("/ports/bulk", {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
       setBulkPreview(res);
     } catch (e: any) {
-      alert(e.message || 'Bulk preview failed');
+      alert(e.message || "Bulk preview failed");
     }
   };
 
@@ -307,38 +344,38 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
         purpose,
         lifecycle,
         serverId: serverId || null,
-        presetId: selectedPresetId || null
+        presetId: selectedPresetId || null,
       };
 
-      if (mode === 'range') {
+      if (mode === "range") {
         payload.portRange = portRange;
       } else {
         const lines = pasteText
-          .split('\n')
+          .split("\n")
           .map((l) => l.trim())
           .filter(Boolean);
         const parsedList = lines.map((line) => {
-          const parts = line.split(',').map((p) => p.trim());
+          const parts = line.split(",").map((p) => p.trim());
           return {
             port: parts[0],
             layer: parts[1] || layer,
             protocol: parts[2] || protocol,
-            purpose: parts[3] || purpose
+            purpose: parts[3] || purpose,
           };
         });
         payload.portsList = parsedList;
       }
 
-      await apiRequest('/ports/bulk', {
-        method: 'POST',
-        body: JSON.stringify(payload)
+      await apiRequest("/ports/bulk", {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['ports'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ["ports"] });
+      queryClient.invalidateQueries({ queryKey: ["overview"] });
       onClose();
     } catch (e: any) {
-      alert(e.message || 'Bulk creation failed');
+      alert(e.message || "Bulk creation failed");
     }
   };
 
@@ -347,21 +384,25 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
 
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
-        if (mode === 'single' && step === 5 && validationResult?.valid) {
+        if (mode === "single" && step === 5 && validationResult?.valid) {
           createPortMutation.mutate(false);
         }
-      } else if (e.key === 'Enter' && !e.shiftKey && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-        if (mode === 'single' && step < 5) {
+      } else if (
+        e.key === "Enter" &&
+        !e.shiftKey &&
+        (e.target as HTMLElement).tagName !== "TEXTAREA"
+      ) {
+        if (mode === "single" && step < 5) {
           e.preventDefault();
           setStep((s) => s + 1);
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, mode, step, validationResult, createPortMutation]);
 
   if (!isOpen) return null;
@@ -377,7 +418,8 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
               <span>Add Port to PortWatch</span>
             </h2>
             <p className="text-xs text-text-muted mt-0.5">
-              Document active listener, reserve a port, or plan a future project deployment.
+              Document active listener, reserve a port, or plan a future project
+              deployment.
             </p>
           </div>
           <button
@@ -392,25 +434,40 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
         {/* Mode Tabs: Single / Range / Paste */}
         <div className="flex border-b border-border bg-surface px-6 pt-2">
           <button
-            onClick={() => { setMode('single'); setStep(1); }}
+            onClick={() => {
+              setMode("single");
+              setStep(1);
+            }}
             className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
-              mode === 'single' ? 'border-primary text-primary font-semibold' : 'border-transparent text-text-muted hover:text-text'
+              mode === "single"
+                ? "border-primary text-primary font-semibold"
+                : "border-transparent text-text-muted hover:text-text"
             }`}
           >
             Single Port
           </button>
           <button
-            onClick={() => { setMode('range'); setBulkPreview(null); }}
+            onClick={() => {
+              setMode("range");
+              setBulkPreview(null);
+            }}
             className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
-              mode === 'range' ? 'border-primary text-primary font-semibold' : 'border-transparent text-text-muted hover:text-text'
+              mode === "range"
+                ? "border-primary text-primary font-semibold"
+                : "border-transparent text-text-muted hover:text-text"
             }`}
           >
             Bulk Range (e.g. 3000-3010)
           </button>
           <button
-            onClick={() => { setMode('paste'); setBulkPreview(null); }}
+            onClick={() => {
+              setMode("paste");
+              setBulkPreview(null);
+            }}
             className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
-              mode === 'paste' ? 'border-primary text-primary font-semibold' : 'border-transparent text-text-muted hover:text-text'
+              mode === "paste"
+                ? "border-primary text-primary font-semibold"
+                : "border-transparent text-text-muted hover:text-text"
             }`}
           >
             Paste List / CSV
@@ -419,16 +476,16 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {mode === 'single' && (
+          {mode === "single" && (
             <>
               {/* Stepper Progress Bar */}
               <div className="flex items-center justify-between border-b border-border pb-4">
                 {[
-                  { num: 1, label: 'Basics' },
-                  { num: 2, label: 'Network' },
-                  { num: 3, label: 'Attach' },
-                  { num: 4, label: 'Features' },
-                  { num: 5, label: 'Review' }
+                  { num: 1, label: "Basics" },
+                  { num: 2, label: "Network" },
+                  { num: 3, label: "Attach" },
+                  { num: 4, label: "Features" },
+                  { num: 5, label: "Review" },
                 ].map((s) => (
                   <button
                     key={s.num}
@@ -438,17 +495,19 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                         step === s.num
-                          ? 'bg-primary text-on-primary'
+                          ? "bg-primary text-on-primary"
                           : step > s.num
-                          ? 'bg-status-up text-on-primary'
-                          : 'bg-surface-2 text-text-muted border border-border'
+                            ? "bg-status-up text-on-primary"
+                            : "bg-surface-2 text-text-muted border border-border"
                       }`}
                     >
                       {step > s.num ? <Check className="w-3.5 h-3.5" /> : s.num}
                     </div>
                     <span
                       className={`text-xs font-medium ${
-                        step === s.num ? 'text-text font-bold' : 'text-text-muted'
+                        step === s.num
+                          ? "text-text font-bold"
+                          : "text-text-muted"
                       }`}
                     >
                       {s.label}
@@ -463,7 +522,8 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-text mb-1">
-                        Port Number (1–65535) <span className="text-status-down">*</span>
+                        Port Number (1–65535){" "}
+                        <span className="text-status-down">*</span>
                       </label>
                       <input
                         type="number"
@@ -478,31 +538,48 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-text mb-1">Lifecycle Status</label>
+                      <label className="block text-xs font-medium text-text mb-1">
+                        Lifecycle Status
+                      </label>
                       <select
                         value={lifecycle}
                         onChange={(e) => setLifecycle(e.target.value as any)}
                         className="w-full px-3 py-2 text-sm bg-surface-2 border border-border rounded-lg text-text focus:outline-none focus:border-primary"
                       >
-                        <option value="active">Active (In use now, scanned & alerted)</option>
-                        <option value="planned">Planned (Intend to open later)</option>
-                        <option value="reserved">Reserved (Held for project, no probe)</option>
-                        <option value="maintenance">Maintenance (Mutes alerts)</option>
-                        <option value="deprecated">Deprecated (To be removed)</option>
+                        <option value="active">
+                          Active (In use now, scanned & alerted)
+                        </option>
+                        <option value="planned">
+                          Planned (Intend to open later)
+                        </option>
+                        <option value="reserved">
+                          Reserved (Held for project, no probe)
+                        </option>
+                        <option value="maintenance">
+                          Maintenance (Mutes alerts)
+                        </option>
+                        <option value="deprecated">
+                          Deprecated (To be removed)
+                        </option>
                       </select>
                     </div>
                   </div>
 
                   {/* Planned / Reserved Extra Fields */}
-                  {(lifecycle === 'planned' || lifecycle === 'reserved') && (
+                  {(lifecycle === "planned" || lifecycle === "reserved") && (
                     <div className="p-3 bg-surface-2/60 border border-border rounded-lg space-y-3">
                       <div className="text-xs font-semibold text-status-info flex items-center gap-1.5">
                         <Info className="w-3.5 h-3.5" />
-                        <span>Planned & Reserved ports are excluded from scanner DOWN checks</span>
+                        <span>
+                          Planned & Reserved ports are excluded from scanner
+                          DOWN checks
+                        </span>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Target Opening Date</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            Target Opening Date
+                          </label>
                           <input
                             type="date"
                             value={targetDate}
@@ -511,7 +588,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Owner / Team</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            Owner / Team
+                          </label>
                           <input
                             type="text"
                             placeholder="e.g. backend-team"
@@ -522,7 +601,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-text-muted mb-1">Reason / Project Name</label>
+                        <label className="block text-xs text-text-muted mb-1">
+                          Reason / Project Name
+                        </label>
                         <input
                           type="text"
                           placeholder="e.g. Migration to gRPC gateway"
@@ -535,15 +616,20 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                   )}
 
                   {/* Maintenance Extra Fields */}
-                  {lifecycle === 'maintenance' && (
+                  {lifecycle === "maintenance" && (
                     <div className="p-3 bg-surface-2/60 border border-border rounded-lg space-y-3">
                       <div className="text-xs font-semibold text-status-slow flex items-center gap-1.5">
                         <AlertTriangle className="w-3.5 h-3.5" />
-                        <span>Maintenance window: scanner runs but alerts are muted. Ends automatically.</span>
+                        <span>
+                          Maintenance window: scanner runs but alerts are muted.
+                          Ends automatically.
+                        </span>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Start Time</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            Start Time
+                          </label>
                           <input
                             type="datetime-local"
                             value={maintenanceFrom}
@@ -552,7 +638,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">End Time</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            End Time
+                          </label>
                           <input
                             type="datetime-local"
                             value={maintenanceTo}
@@ -566,25 +654,31 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-text mb-1">Layer</label>
+                      <label className="block text-xs font-medium text-text mb-1">
+                        Layer
+                      </label>
                       <select
                         value={layer}
                         onChange={(e) => setLayer(e.target.value as any)}
                         className="w-full px-3 py-2 text-sm bg-surface-2 border border-border rounded-lg text-text focus:outline-none focus:border-primary"
                       >
                         <option value="http">HTTP Layer (Nginx Web)</option>
-                        <option value="stream">Stream Layer (TCP/UDP Passthrough)</option>
+                        <option value="stream">
+                          Stream Layer (TCP/UDP Passthrough)
+                        </option>
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-text mb-1">Protocol</label>
+                      <label className="block text-xs font-medium text-text mb-1">
+                        Protocol
+                      </label>
                       <select
                         value={protocol}
                         onChange={(e) => setProtocol(e.target.value as any)}
                         className="w-full px-3 py-2 text-sm bg-surface-2 border border-border rounded-lg text-text focus:outline-none focus:border-primary"
                       >
-                        {layer === 'http' ? (
+                        {layer === "http" ? (
                           <>
                             <option value="HTTP">HTTP</option>
                             <option value="HTTPS">HTTPS</option>
@@ -600,7 +694,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-text mb-1">Purpose / Service Label</label>
+                    <label className="block text-xs font-medium text-text mb-1">
+                      Purpose / Service Label
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. Customer Portal API"
@@ -611,7 +707,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-text mb-1">Server Host</label>
+                    <label className="block text-xs font-medium text-text mb-1">
+                      Server Host
+                    </label>
                     {!isAddingServerInline ? (
                       <div className="flex gap-2">
                         <select
@@ -663,18 +761,24 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
               {step === 2 && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-text mb-1">Expected Bind Address</label>
+                    <label className="block text-xs font-medium text-text mb-1">
+                      Expected Bind Address
+                    </label>
                     <select
                       value={expectedBind}
                       onChange={(e) => setExpectedBind(e.target.value)}
                       className="w-full px-3 py-2 text-sm bg-surface-2 border border-border rounded-lg text-text focus:outline-none focus:border-primary"
                     >
-                      <option value="0.0.0.0">0.0.0.0 (All public & internal interfaces)</option>
-                      <option value="127.0.0.1">127.0.0.1 (Local loopback only - private)</option>
+                      <option value="0.0.0.0">
+                        0.0.0.0 (All public & internal interfaces)
+                      </option>
+                      <option value="127.0.0.1">
+                        127.0.0.1 (Local loopback only - private)
+                      </option>
                       <option value="::">:: (IPv6 all interfaces)</option>
                       <option value="custom">Specific IP Address...</option>
                     </select>
-                    {expectedBind === 'custom' && (
+                    {expectedBind === "custom" && (
                       <input
                         type="text"
                         placeholder="192.168.1.50"
@@ -686,9 +790,12 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
                   <div className="flex items-center justify-between p-3 bg-surface-2 rounded-lg border border-border">
                     <div>
-                      <div className="text-xs font-medium text-text">Public Internet Accessible</div>
+                      <div className="text-xs font-medium text-text">
+                        Public Internet Accessible
+                      </div>
                       <div className="text-[11px] text-text-muted">
-                        Uncheck if this port should only be reachable via VPN or local network
+                        Uncheck if this port should only be reachable via VPN or
+                        local network
                       </div>
                     </div>
                     <input
@@ -711,7 +818,8 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                       className="w-full px-3 py-2 text-sm bg-surface-2 border border-border rounded-lg text-text focus:outline-none focus:border-primary"
                     />
                     <p className="text-[11px] text-text-muted mt-1">
-                      If process verification feature is enabled, PortWatch alerts if a different process binds this socket.
+                      If process verification feature is enabled, PortWatch
+                      alerts if a different process binds this socket.
                     </p>
                   </div>
                 </div>
@@ -722,9 +830,12 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 bg-surface-2 rounded-lg border border-border">
                     <div>
-                      <div className="text-xs font-medium text-text">Create and Link Initial Route</div>
+                      <div className="text-xs font-medium text-text">
+                        Create and Link Initial Route
+                      </div>
                       <div className="text-[11px] text-text-muted">
-                        Connect a domain route directly to this port during setup
+                        Connect a domain route directly to this port during
+                        setup
                       </div>
                     </div>
                     <input
@@ -741,7 +852,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                     <div className="space-y-3 p-3 bg-surface-2/40 border border-border rounded-lg">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Domain Name</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            Domain Name
+                          </label>
                           <input
                             type="text"
                             placeholder="api.example.com"
@@ -751,7 +864,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Path</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            Path
+                          </label>
                           <input
                             type="text"
                             value={routePath}
@@ -763,19 +878,27 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Route Action</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            Route Action
+                          </label>
                           <select
                             value={routeAction}
                             onChange={(e) => setRouteAction(e.target.value)}
                             className="w-full px-2.5 py-1.5 text-xs bg-surface border border-border rounded text-text"
                           >
-                            <option value="Proxy">Proxy (Reverse Proxy to Backend)</option>
-                            <option value="Static">Static (Serve local files)</option>
+                            <option value="Proxy">
+                              Proxy (Reverse Proxy to Backend)
+                            </option>
+                            <option value="Static">
+                              Static (Serve local files)
+                            </option>
                             <option value="Redirect">Redirect (301/302)</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Backend Target (Host:Port)</label>
+                          <label className="block text-xs text-text-muted mb-1">
+                            Backend Target (Host:Port)
+                          </label>
                           <div className="flex gap-2">
                             <input
                               type="text"
@@ -803,7 +926,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
               {step === 4 && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-text mb-1">Choose Feature Preset</label>
+                    <label className="block text-xs font-medium text-text mb-1">
+                      Choose Feature Preset
+                    </label>
                     <select
                       value={selectedPresetId}
                       onChange={(e) => setSelectedPresetId(e.target.value)}
@@ -812,7 +937,7 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                       <option value="">Custom Configuration</option>
                       {presets.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} {p.isBuiltin ? '(Built-in)' : '(Custom)'}
+                          {p.name} {p.isBuiltin ? "(Built-in)" : "(Custom)"}
                         </option>
                       ))}
                     </select>
@@ -820,9 +945,13 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
                   <div className="border border-border rounded-lg divide-y divide-border max-h-64 overflow-y-auto">
                     {registryFeatures.map((feat) => {
-                      const isEnabled = featuresConfig[feat.key]?.enabled !== false;
+                      const isEnabled =
+                        featuresConfig[feat.key]?.enabled !== false;
                       return (
-                        <div key={feat.key} className="p-3 flex items-center justify-between hover:bg-surface-2/40 transition-colors">
+                        <div
+                          key={feat.key}
+                          className="p-3 flex items-center justify-between hover:bg-surface-2/40 transition-colors"
+                        >
                           <div className="pr-4">
                             <div className="text-xs font-medium text-text flex items-center gap-2">
                               <span>{feat.label}</span>
@@ -832,12 +961,16 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-text-muted line-clamp-1">{feat.description}</div>
+                            <div className="text-[11px] text-text-muted line-clamp-1">
+                              {feat.description}
+                            </div>
                           </div>
                           <input
                             type="checkbox"
                             checked={isEnabled}
-                            onChange={(e) => toggleFeature(feat.key, e.target.checked)}
+                            onChange={(e) =>
+                              toggleFeature(feat.key, e.target.checked)
+                            }
                             className="w-4 h-4 rounded text-primary focus:ring-primary"
                           />
                         </div>
@@ -857,14 +990,14 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                         <div
                           key={idx}
                           className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
-                            w.severity === 'error'
-                              ? 'bg-status-down/10 border-status-down/30 text-status-down'
-                              : w.severity === 'warning'
-                              ? 'bg-status-slow/10 border-status-slow/30 text-status-slow'
-                              : 'bg-status-info/10 border-status-info/30 text-status-info'
+                            w.severity === "error"
+                              ? "bg-status-down/10 border-status-down/30 text-status-down"
+                              : w.severity === "warning"
+                                ? "bg-status-slow/10 border-status-slow/30 text-status-slow"
+                                : "bg-status-info/10 border-status-info/30 text-status-info"
                           }`}
                         >
-                          {w.severity === 'error' ? (
+                          {w.severity === "error" ? (
                             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                           ) : (
                             <Info className="w-4 h-4 shrink-0 mt-0.5" />
@@ -875,7 +1008,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const p = presets.find((pr) => pr.name === w.suggestedPreset);
+                                  const p = presets.find(
+                                    (pr) => pr.name === w.suggestedPreset,
+                                  );
                                   if (p) setSelectedPresetId(p.id);
                                 }}
                                 className="mt-1 underline text-[11px] font-semibold"
@@ -892,17 +1027,49 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                   {/* Summary Box */}
                   <div className="p-4 bg-surface-2/60 border border-border rounded-lg space-y-2 text-xs">
                     <div className="font-semibold text-text border-b border-border pb-2 flex items-center justify-between">
-                      <span className="font-mono-numbers text-sm">Port :{portNum}</span>
+                      <span className="font-mono-numbers text-sm">
+                        Port :{portNum}
+                      </span>
                       <LifecycleBadge lifecycle={lifecycle} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1 text-text-muted">
-                      <div>Layer: <span className="text-text font-medium">{layer.toUpperCase()}</span></div>
-                      <div>Protocol: <span className="text-text font-medium">{protocol}</span></div>
-                      <div>Bind: <span className="text-text font-mono">{expectedBind}</span></div>
-                      <div>Access: <span className="text-text font-medium">{isPublic ? 'Public' : 'Internal'}</span></div>
-                      {purpose && <div className="col-span-2">Purpose: <span className="text-text">{purpose}</span></div>}
+                      <div>
+                        Layer:{" "}
+                        <span className="text-text font-medium">
+                          {layer.toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        Protocol:{" "}
+                        <span className="text-text font-medium">
+                          {protocol}
+                        </span>
+                      </div>
+                      <div>
+                        Bind:{" "}
+                        <span className="text-text font-mono">
+                          {expectedBind}
+                        </span>
+                      </div>
+                      <div>
+                        Access:{" "}
+                        <span className="text-text font-medium">
+                          {isPublic ? "Public" : "Internal"}
+                        </span>
+                      </div>
+                      {purpose && (
+                        <div className="col-span-2">
+                          Purpose: <span className="text-text">{purpose}</span>
+                        </div>
+                      )}
                       {attachRoute && routeDomain && (
-                        <div className="col-span-2">Route: <span className="text-text font-mono">{routeDomain}{routePath}</span></div>
+                        <div className="col-span-2">
+                          Route:{" "}
+                          <span className="text-text font-mono">
+                            {routeDomain}
+                            {routePath}
+                          </span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -912,7 +1079,7 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
           )}
 
           {/* BULK RANGE MODE */}
-          {mode === 'range' && (
+          {mode === "range" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-text mb-1">
@@ -929,7 +1096,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">Shared Purpose</label>
+                  <label className="block text-xs text-text-muted mb-1">
+                    Shared Purpose
+                  </label>
                   <input
                     type="text"
                     value={purpose}
@@ -939,7 +1108,9 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">Shared Lifecycle</label>
+                  <label className="block text-xs text-text-muted mb-1">
+                    Shared Lifecycle
+                  </label>
                   <select
                     value={lifecycle}
                     onChange={(e) => setLifecycle(e.target.value as any)}
@@ -960,9 +1131,13 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                 <div className="p-3 bg-surface-2 border border-border rounded-lg space-y-2 text-xs">
                   <div className="flex justify-between font-medium">
                     <span>Total: {bulkPreview.total} ports</span>
-                    <span className="text-status-up">Valid: {bulkPreview.validCount}</span>
+                    <span className="text-status-up">
+                      Valid: {bulkPreview.validCount}
+                    </span>
                     {bulkPreview.conflictCount > 0 && (
-                      <span className="text-status-slow">Conflicts (skipped): {bulkPreview.conflictCount}</span>
+                      <span className="text-status-slow">
+                        Conflicts (skipped): {bulkPreview.conflictCount}
+                      </span>
                     )}
                   </div>
                   {bulkPreview.conflicts.length > 0 && (
@@ -978,7 +1153,7 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
           )}
 
           {/* BULK PASTE MODE */}
-          {mode === 'paste' && (
+          {mode === "paste" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-text mb-1">
@@ -1001,9 +1176,13 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                 <div className="p-3 bg-surface-2 border border-border rounded-lg space-y-2 text-xs">
                   <div className="flex justify-between font-medium">
                     <span>Total parsed: {bulkPreview.total}</span>
-                    <span className="text-status-up">Valid: {bulkPreview.validCount}</span>
+                    <span className="text-status-up">
+                      Valid: {bulkPreview.validCount}
+                    </span>
                     {bulkPreview.conflictCount > 0 && (
-                      <span className="text-status-slow">Conflicts: {bulkPreview.conflictCount}</span>
+                      <span className="text-status-slow">
+                        Conflicts: {bulkPreview.conflictCount}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1014,7 +1193,7 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
 
         {/* Footer Navigation */}
         <div className="px-6 py-4 border-t border-border bg-surface-2/60 flex items-center justify-between">
-          {mode === 'single' ? (
+          {mode === "single" ? (
             <>
               <div>
                 {step > 1 && (
@@ -1066,7 +1245,12 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
             </>
           ) : (
             <div className="flex justify-end gap-2 w-full">
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="text-xs"
+              >
                 Cancel
               </Button>
               <Button
@@ -1076,7 +1260,7 @@ export function AddPortDialog({ isOpen, onClose, prefill }: AddPortDialogProps) 
                 disabled={!bulkPreview || bulkPreview.validCount === 0}
                 className="text-xs"
               >
-                Import {bulkPreview ? `${bulkPreview.validCount} Ports` : ''}
+                Import {bulkPreview ? `${bulkPreview.validCount} Ports` : ""}
               </Button>
             </div>
           )}

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Grid, Search, Check, Copy, ArrowRight, Radio } from 'lucide-react';
-import { apiRequest } from '../../lib/api';
-import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Grid, Search, Check, Copy, ArrowRight, Radio } from "lucide-react";
+import { apiRequest } from "../../lib/api";
+import { Card, CardHeader, CardTitle } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
 
 export function PortMapPage() {
-  const [selectedRange, setSelectedRange] = useState('3000-3999');
+  const [selectedRange, setSelectedRange] = useState("3000-3999");
   const [freePortCount, setFreePortCount] = useState(5);
   const [copiedPort, setCopiedPort] = useState<number | null>(null);
 
@@ -22,19 +22,26 @@ export function PortMapPage() {
       ports: any[];
     }>;
   }>({
-    queryKey: ['port-map'],
-    queryFn: () => apiRequest('/port-map')
+    queryKey: ["port-map"],
+    queryFn: () => apiRequest("/port-map"),
   });
 
   // Query free ports
-  const { data: freePortsData, refetch: findFreePorts, isFetching } = useQuery<{
+  const {
+    data: freePortsData,
+    refetch: findFreePorts,
+    isFetching,
+  } = useQuery<{
     range: string;
     requestedCount: number;
     freePorts: number[];
   }>({
-    queryKey: ['free-ports', selectedRange, freePortCount],
-    queryFn: () => apiRequest(`/port-map/free?range=${selectedRange}&count=${freePortCount}`),
-    enabled: false
+    queryKey: ["free-ports", selectedRange, freePortCount],
+    queryFn: () =>
+      apiRequest(
+        `/port-map/free?range=${selectedRange}&count=${freePortCount}`,
+      ),
+    enabled: false,
   });
 
   const handleCopy = (p: number) => {
@@ -51,7 +58,8 @@ export function PortMapPage() {
           <span>Port Map & Free Port Finder</span>
         </h1>
         <p className="text-xs text-text-muted mt-1">
-          Visual heat strip across system port allocations, capacity utilization, and dynamic free port discovery.
+          Visual heat strip across system port allocations, capacity
+          utilization, and dynamic free port discovery.
         </p>
       </div>
 
@@ -64,7 +72,8 @@ export function PortMapPage() {
               <span>Find Me a Free Port</span>
             </h2>
             <p className="text-xs text-text-muted mt-0.5">
-              Live checks against documented ports and host socket listeners to find available ports.
+              Live checks against documented ports and host socket listeners to
+              find available ports.
             </p>
           </div>
 
@@ -91,7 +100,12 @@ export function PortMapPage() {
               <option value="10">10 free ports</option>
             </select>
 
-            <Button variant="primary" size="sm" onClick={() => findFreePorts()} isLoading={isFetching}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => findFreePorts()}
+              isLoading={isFetching}
+            >
               Find Free Ports
             </Button>
           </div>
@@ -100,7 +114,9 @@ export function PortMapPage() {
         {/* Free Ports Results */}
         {freePortsData && (
           <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold text-text-muted">Available Next Ports:</span>
+            <span className="text-xs font-semibold text-text-muted">
+              Available Next Ports:
+            </span>
             {freePortsData.freePorts.map((p) => (
               <button
                 key={p}
@@ -126,14 +142,16 @@ export function PortMapPage() {
           <Card key={range.label} className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-bold text-sm text-text">{range.label}</span>
+                <span className="font-bold text-sm text-text">
+                  {range.label}
+                </span>
                 <span className="text-xs text-text-muted font-mono ml-2">
                   ({range.min}–{range.max})
                 </span>
               </div>
               <div className="text-xs font-mono text-text-muted">
-                <span className="text-text font-bold">{range.usedCount}</span> / {range.totalCapacity} ports (
-                {range.usedPercentage}%)
+                <span className="text-text font-bold">{range.usedCount}</span> /{" "}
+                {range.totalCapacity} ports ({range.usedPercentage}%)
               </div>
             </div>
 
@@ -154,7 +172,9 @@ export function PortMapPage() {
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-2 border border-border text-xs font-mono"
                   >
                     <span className="font-bold text-text">:{p.port}</span>
-                    <span className="text-[10px] text-text-muted">{p.protocol}</span>
+                    <span className="text-[10px] text-text-muted">
+                      {p.protocol}
+                    </span>
                   </span>
                 ))}
               </div>

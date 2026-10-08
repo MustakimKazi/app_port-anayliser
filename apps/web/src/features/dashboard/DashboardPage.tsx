@@ -33,11 +33,28 @@ import { OverviewData } from '../../types';
 export function DashboardPage() {
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery<OverviewData>({
+  const { data, isLoading, isError, refetch } = useQuery<OverviewData>({
     queryKey: ['overview'],
     queryFn: () => apiRequest('/overview'),
     refetchInterval: 15000
   });
+
+  // A failed overview request used to leave the page in the loading skeleton
+  // forever (because of `!data`); show a real error with a retry action.
+  if (isError) {
+    return (
+      <div className="max-w-lg border border-status-down/30 bg-status-down/10 rounded-xl p-6 space-y-3">
+        <h2 className="font-semibold text-text">Dashboard failed to load</h2>
+        <p className="text-xs text-text-muted">
+          The overview API returned an error. Check that the API is reachable and
+          that you are signed in, then retry.
+        </p>
+        <Button variant="secondary" size="sm" className="text-xs" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return (
@@ -402,6 +419,16 @@ export function DashboardPage() {
                   </div>
                 </div>
                 <div className="text-text-muted text-[11px] font-mono">
+                  {new Date(evt.at).toLocaleTimeString()}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
                   {new Date(evt.at).toLocaleTimeString()}
                 </div>
               </div>

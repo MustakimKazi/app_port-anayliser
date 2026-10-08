@@ -30,12 +30,15 @@ stacked column. A consolidated fix exists: **`patches/ALL.diff`** (11 patches, 3
 1783 lines), verified against the provided tree; regression tests that **fail before** the
 patches and **all pass after** them are in `tests/` (measured: 8/5/5/17 failures before → 0 after).
 
-**Severity counts:** Critical **3** (BUG-001…003), High **15** (BUG-004…017, 054), Medium **26**
-(BUG-019…043, 052), Low **9** (BUG-044…051, 053), Improvement **3** — **56 total** (53 bugs + 3
-improvements). Note: **BUG-018 is unused** (IDs are stable references).
-**Confirmed: 52 bugs + 3 improvements; Suspected: 1** (BUG-049).
-**Patched bugs: 27** across 11 patch files; **26 bugs documented with fix approach only**
-(needs product/design decisions or dependency work — listed inline).
+**Severity counts:** Critical **3** (BUG-001…003), High **16** (BUG-004…017, 054, 063), Medium **30**
+(BUG-019…043, 052, 055, 056, 059, 064), Low **14** (BUG-044…051, 053, 057, 058, 060…062),
+Improvement **3** — **66 total** (63 bugs + 3 improvements). Note: **BUG-018 is unused**
+(IDs are stable references).
+**Confirmed: 62 bugs + 3 improvements; Suspected: 1** (BUG-049).
+**Patched bugs: 27** across 11 patch files; **36 bugs documented without a standalone patch
+file** (fix approach inline, or fixed directly in Phase 2 code). New bugs **055–064** come
+from the post-patch full-site UI sweep and the Phase 2 detail-view build (`evidence/ui-sweep/`,
+`evidence/phase2/`, §6).
 
 ### Top 5 risks (fix first)
 
@@ -286,6 +289,20 @@ improvements). Note: **BUG-018 is unused** (IDs are stable references).
   `npm test` green on an isolated DB after seeding.
 - **Effort:** S | **Risk:** low.
 
+### BUG-063 — Route detail drawer crash: `Cannot read properties of undefined (reading 'action')` — every route row click on Domains & Routes threw a render-time TypeError
+- **Status:** Confirmed | **Root cause:** `RoutesPage.tsx` drawer read `routeDetail.route.action`
+  (and `routeDetail.route.*` throughout the JSX) while `GET /api/routes/:id` returns the **bare**
+  route object — the shape mismatch only surfaced once the drawer was actually clicked; there
+  were no loading/error states, so a pending or failed fetch rendered `undefined` directly.
+- **Fix:** adapt the drawer to the bare shape (`routeDetail.action`, …), add `retry: 1`, a
+  skeleton loading state and an error card with Retry; nginx preview generated client-side via
+  `lib/nginx.ts` `buildNginxSnippet(routeDetail)` instead of relying on a server-rendered field.
+- **Patch:** none — fixed directly in Phase 2 code (no standalone patch file; `patches/` stays
+  consistent with the provided tree).
+- **Test:** Playwright `e2e/phase2.spec.ts` — "route row opens detail drawer with nginx preview
+  (no crash)" asserts dialog + preview visible and **0 pageerrors** (`evidence/phase2/playwright-phase2.txt`).
+- **Effort:** S.
+
 ---
 
 ## 4. Medium
@@ -299,8 +316,8 @@ improvements). Note: **BUG-018 is unused** (IDs are stable references).
 | BUG-023 | No React error boundary; Dashboard shows an infinite skeleton on API error | Confirmed | `App.tsx` (`<Routes>` unguarded); `DashboardPage.tsx` no `isError` | WEB-002 ✔ | manual: bad `DATABASE_URL` → error card + Retry |
 | BUG-024 | Horizontal overflow: all pages @390/768px, /ports + /routes @1366px | Confirmed | `Layout.tsx:73` fixed `pl-64` (256px always reserved) + `.flex-1` content without `min-w-0` (min-content floor from header `w-72` quick-jump chip, SSE chip, wide buttons and tables stretched the page) | WEB-003 ✔ (`pl-0 lg:pl-64`, `min-w-0`, responsive header: quick-jump/SSE hidden below `lg`, button labels collapse to icons) | `tests/web-ui.test.mjs` (17 FAIL pre-fix / ALL PASS post-fix) |
 | BUG-025 | Ports table has no pagination — spec requires a 50-row paginated table; rows below viewport unreachable | Confirmed | `PortsPage.tsx` renders `filteredPorts` with no slice; footer absent | WEB-001 ✔ | `tests/web-ui.test.mjs` (pagination footer assert) |
-| BUG-026 | 38 unlabelled controls (axe critical `label`/`select-name`) incl. search, selects, port-range inputs | Confirmed | `PortsPage.tsx` search/selects/checkboxes without `aria-label` | WEB-001 ✔ | `tests/web-ui.test.mjs` ("every input/select on /ports has an accessible name") |
-| BUG-027 | Light theme: contrast failures (status badge 4.27:1 < 4.5:1 on `ok`/`slow` badges) | Confirmed | `index.css` light palette vs `Badge.tsx` usage (`axe-results.json`) | none — remediation: darken light-theme badge colors to ≥4.5:1 | `npx axe` light theme |
+| BUG-026 | 38 unlabelled controls (axe critical `label`/`select-name`) incl. search, selects, port-range inputs — **partially fixed**: WEB-001 cleared /ports (0 remaining there), but **13 instances remain elsewhere**: /routes 4 selects, /issues 3 selects, /port-map 2 selects, /settings 4 number inputs | Confirmed | `PortsPage.tsx` (fixed by WEB-001) + `RoutesPage`/`IssuesPage`/`PortMapPage`/ `SettingsPage` selects/inputs still without `aria-label`/`<label>` | WEB-001 ✔ (Ports only) | `tests/web-ui.test.mjs` + `evidence/ui-sweep/axe-results-patched.json` (`select-name` ×9 nodes, `label` ×4 nodes) |
+| BUG-027 | Contrast failures in **both themes** (axe `color-contrast`): Issues badges **4.26:1 light / 4.29:1 dark ×129 nodes in each theme**; light also config-files 49, backends 26, ports 23, routes 3, certificates 2 nodes (originally measured 4.27:1 on `ok`/`slow` badges) | Confirmed | alpha-overlay badges (`bg-primary/20 text-primary`, `bg-status-slow/20 …`) vs `index.css` tokens in both palettes | none — remediation: solid badge colors ≥4.5:1 per theme (or darken the 20%-alpha underlay) | `evidence/ui-sweep/axe-results-patched.json`; ratios captured via axe (`fg #939BF4 / bg #3C3958` = 4.29 dark; `#2F5D50 / #C8C3B8` = 4.26 light) |
 | BUG-028 | `grid-cols-24` is not a Tailwind class → "24-hour uptime strip" renders as one stacked column | Confirmed | `PortsPage.tsx:915`; absent from built CSS; computed `589px`, 24 children at 28px each in one column | WEB-001 ✔ (arbitrary `grid-cols-[repeat(24,minmax(0,1fr))]`) | `scripts/gridcheck3.mjs` / screenshot `evidence/port-drawer-uptime-strip.png` |
 | BUG-029 | Every filter keystroke pushes a browser-history entry (Back button unusable) | Confirmed | `PortsPage.tsx:161` `setSearchParams(next)` without `{ replace: true }` | WEB-001 ✔ | manual: type in search, press Back |
 | BUG-030 | Scanner ignores Settings — scan interval/timeout/concurrency read from env only; UI Settings write DB values nobody reads | Confirmed | `env.ts:25` (`SCAN_INTERVAL_SEC`), `scanner-service.ts:20,29` uses `config.*`; `SettingsPage.tsx:309` writes `scanIntervalSec` → DB via `alerts.routes.ts:94` | none — remediation: load settings at scan start, env as default only | manual: change interval in UI, observe no effect (pre-fix) |
@@ -318,6 +335,10 @@ improvements). Note: **BUG-018 is unused** (IDs are stable references).
 | BUG-042 | `listenAddress` is client-writable on `POST /api/ports` (bind spoofing) | Confirmed | `ports.routes.ts` POST accepts `listenAddress` from body | none — remediation: strip/ignore on create, derive from scanner | manual: POST with fake bind → rejected |
 | BUG-043 | TLS certificate scan silently covers only the first 20 HTTPS routes; probe errors swallowed | Confirmed | `scanner-service.ts:271` `httpsRoutes.slice(0, 20)`, `:277` empty `catch` | none — remediation: scan all (bounded concurrency), record probe errors as issues | manual: >20 HTTPS routes → all checked |
 | BUG-052 | Alert notification **dispatch layer does not exist**: every firing writes an `AlertLog` row with `status: 'simulated'` and nothing is ever sent — webhook/Telegram/SMTP settings are write-only (no code reads them); alert logs are never rendered in the UI; yet `/alerts/test` returns “dispatched successfully” and the Settings page offers a “sample dispatch … across configured channels” (Generic Webhook / Telegram Bot options) | Confirmed | `scanner-service.ts:450` (`status: 'simulated'`), `alerts.routes.ts:54-69` (test endpoint always `simulated`); `slackDiscordWebhook`/`genericWebhook`/`telegramConfig`/`smtpConfig` written by `alerts.routes.ts:117-127`, never read anywhere (`grep -rn "slackDiscordWebhook\|telegramConfig" apps/api/src` → write sites only); no `fetch`/`http.request`/`nodemailer` in `apps/api/src`; web reads only `/alerts/rules` + `/alerts/test` (no `/alerts/logs`) | none — remediation: implement dispatcher per channel (secret storage per BUG-040/020) and honest “simulated” labelling until then | manual: POST `/alerts/test` with `channel: webhook` → 200 “dispatched successfully”, `AlertLog.status='simulated'`, no outbound request |
+| BUG-055 | Command Palette results can only be activated by **mouse click**: `Enter` never opens a result and `ArrowDown` does not move focus/selection (focus stays in the text input) — keyboard-only users cannot navigate with the app's primary keyboard launcher | Confirmed | `CommandPalette.tsx` has no selected-index state or `onKeyDown` handling beyond `Escape`; results are plain `div`s without `role="option"`/`aria-activedescendant` | none — remediation: active-index state + arrow highlight + Enter → navigate + `role="listbox"/"option"` | Playwright: Ctrl+K → type `cert` → Enter stays on `/` (also after ArrowDown; 3 attempts), while clicking the same result → `/certificates` (`evidence/ui-sweep/interactive-findings.json`, `palette-search.png`) |
+| BUG-056 | Add Port 5-step wizard has **no client-side validation until the final save**: out-of-range port `99999` passes step 1 “Next” and every subsequent step; only `POST /api/ports` rejects it (400) at “Save & Add Another” — the whole wizard input is wasted and the only feedback is a global toast while the modal stays on Review | Confirmed | `AddPortDialog.tsx` performs no range/format checks on step navigation; error surfaces solely through API 400 → `MutationCache` toast | none — remediation: per-step validation mirroring the API rule (1–65535), inline field error, block Next on invalid | Playwright: fill 99999 → 5× Next → Save → toast “Port number must be between 1 and 65535”, `POST /api/ports` 400, modal still open (`evidence/ui-sweep/wizard-400-feedback.png`, `wizard-99999.png`) |
+| BUG-059 | Scrollable content panels are not keyboard-focusable — axe `scrollable-region-focusable` (**serious**) on Dashboard (ports-by-layer list), Backends (4 side panels), History timeline: keyboard users cannot scroll these regions | Confirmed | scroll containers (`overflow-y-auto max-h-*`) lack `tabindex="0"`/`role="region"`; pre-existing (present in baseline `axe-results.json`, never recorded until now) | none — remediation: `tabIndex={0}` + labelled `role="region"` on each scrollable panel | `evidence/ui-sweep/axe-results-patched.json` → `scrollable-region-focusable` on 3 pages × both themes |
+| BUG-064 | No click-through detail views — Certificates, Config Files and Backends rows/cards open nothing, and Domains has no management at all: no cert expiry detail, no way to view/edit stored nginx config, no backend impact analysis, no per-domain add/delete with confirmation | Confirmed | Phase-2 gaps: `CertificatesPage`/`ConfigFilesPage`/`BackendsPage` tables had no row→drawer wiring; `config_files` had no `content` column or detail endpoint (`config-files.routes.ts` list only); no domain endpoints existed (`modules/domains/` absent); `RoutesPage` domain headers only collapsed — no detail, add-wizard or delete flow | none — fixed directly in Phase 2 code: deep-probe cert drawer (`GET /certificates/:domain`), `004_config_file_content.sql` + full-page nginx viewer with partition sidebar + paste modal, backend impact drawer, new `domains.routes.ts` (list/detail/impact/archive/restore/delete), domain drawer + Add Domain wizard + archive-vs-delete dialog with typed confirmation | `apps/api/tests/phase2.test.ts` (22 tests) + `e2e/phase2.spec.ts` (6 flows) all green (`evidence/phase2/vitest-phase2.txt`, `evidence/phase2/playwright-phase2.txt`) |
 
 ---
 
@@ -334,14 +355,22 @@ improvements). Note: **BUG-018 is unused** (IDs are stable references).
 | BUG-050 | `GET /api/feature-presets` creates missing built-in rows on read (write-on-read; racy under concurrency) | Confirmed | `features.routes.ts:77-91` | none — seed via migration | concurrent GETs → no dup errors |
 | BUG-051 | Spreadsheet import is not atomic: ~400 sequential single-row writes with **zero transactions** — crash/timeout mid-import leaves a partially imported workbook | Confirmed | `import-excel.ts:286-596` `importParsedData()` (0 × `$transaction`; server/config/backend/port/route/issue/user/setting upserts run bare); caller `import-export.routes.ts:18` invokes it directly; `route.deleteMany` at `:437` widens the partial-state window | none — remediation: wrap body in `prisma.$transaction(tx => …)` (helpers already take a client param) + batch `createMany` | `IMPORT_TEST=1` with induced mid-import failure → rollback, DB unchanged |
 | BUG-053 | Viewer UI gating is inconsistent: global Header **Scan Now** button and Settings scanner-tab **Save Scanner Settings** (plus custom-field add/delete, preset create) are visible and clickable for viewers — only Header “Add Port”, Ports/Routes/Backends/Issues row actions, features-toggle and preset-delete are `!isViewer`-gated | Confirmed | `Header.tsx:19` computes `isViewer` but `:117` renders Scan Now ungated (`handleScanNow` → POST `/scan`); `SettingsPage.tsx:31` has `isViewer` used only at `:469` (features toggle) and `:524` (preset delete) — scanner save `:305`, custom-field/preset mutations `:49-161` ungated; viewer probe (`evidence/ui-console-errors.txt`) shows “Scan Now” + “Save Scanner Settings” rendered for viewer session; pages certificates/history/dashboard/port-map/config-files have 0 `isViewer` checks (no mutations there) | none — wrap remaining mutation controls in `{!isViewer && …}` / `disabled` | viewer login → buttons hidden or disabled; click → no request or 403 toast |
+| BUG-057 | Settings **“Save Scanner Settings” gives no success feedback**: `PATCH /api/settings` → 200 but no toast, no inline “Saved” state — user cannot tell whether the change persisted (failures do toast, successes are silent) | Confirmed | `SettingsPage.tsx` scanner save relies on the global `MutationCache.onError` only; no `onSuccess` UI | none — remediation: `onSuccess` toast or transient “Saved ✓” label | Playwright: change value → save → `200 PATCH /api/settings` observed, 0 toasts, no “saved” text (`evidence/ui-sweep/settings-save2.png`) |
+| BUG-058 | Fixed-position overlays lack dialog semantics: Add Port wizard (`div.fixed.inset-0`) and port detail drawer (`aside`) have **no `role="dialog"`/`aria-modal`/accessible name, no focus trap**; ESC closes the drawer but **not** the wizard (wizard only via labelled X) — screen readers never announce either as a dialog (axe has no rule for this, so it survived the a11y pass) | Confirmed | `AddPortDialog.tsx` / PortsPage drawer render plain `div`/`aside` overlays | none — remediation: `role="dialog" aria-modal="true" aria-labelledby`, focus trap, ESC closes wizard too | DOM dump while wizard open: `querySelectorAll('[role=dialog]') → 0` (`evidence/ui-sweep/after-add-port-click.png`, `port-drawer.png`) |
+| BUG-060 | Heading hierarchy skips levels — axe `heading-order` on Dashboard, Backends, History, Settings: `<h3>` used as the first heading with no preceding `<h2>` (Settings instance added by the settings-tab UI) | Confirmed | page sections start at `h3` styling; pre-existing on /, /backends, /history (baseline `axe-results.json`), unrecorded until now | none — remediation: real `h2` page titles or demote section headings | `evidence/ui-sweep/axe-results-patched.json` → `heading-order` ×8 page/theme rows |
+| BUG-061 | Dashboard “Ports by Layer & Protocol” pie chart is inaccessible — axe `svg-img-alt` (serious): recharts `<path>` sectors carry a `name` attribute but no accessible name (`aria-label`/`<title>`), so screen readers get nothing from the chart | Confirmed | recharts sector rendering without title/aria; pre-existing (baseline `axe-results.json`), unrecorded until now | none — remediation: chart-level `role="img"` + summary `aria-label`, per-sector `<title>`, data-table fallback | `evidence/ui-sweep/axe-results-patched.json` → `svg-img-alt` nodes:3 both themes |
+| BUG-062 | Login page content sits outside landmarks — axe `landmark-one-main` + `region` (4 nodes): no `<main>` around the form, brand/version sidebar unscoped (introduced with the WEB-002 login page) | Confirmed | `LoginPage.tsx` wrapper has no `<main>`/`<header>` structure | none — remediation: wrap form in `<main>`, chrome in `<header>`/`<nav>` | `evidence/ui-sweep/axe-results-patched.json` → `/login` both themes |
 | IMP-001 | Bundle is a single 1.4 MB chunk (`vite build` warns >500 kB) — slow first paint | Confirmed | no route-level code splitting in `App.tsx` | none — `React.lazy` per route | build output <500 kB/chunk |
 | IMP-002 | Export menu only appears on hover (discoverability), export exists only on Ports page | Confirmed | `PortsPage.tsx` hover-grouped menu; other pages lack it (see BUG-035) | none — persistent menu button | manual/UX review |
 | IMP-003 | Scanner re-upserts every matching auto-issue on **every** scan cycle — 9 sequential rule loops, no batching; `@updatedAt` churned every 30s even when nothing changed | Confirmed | `issue-detector.ts:25-265` (9 `await prisma.issue.upsert` inside `for` loops) called each cycle from `scanner-service.ts:286`; no `$transaction`/`createMany` | none — batch upserts; skip rows whose `observed` text is unchanged | query count per scan via Prisma query log |
 
-**Bugs with no patch (26):** BUG-009, 020, 027, 030, 031, 032, 033, 034, 035, 037, 038, 040,
-041, 042, 043, 044, 045, 046, 047, 048, 049, 050, 051, 052, 053, 054 — each row above states the
-fix approach; they need product/ownership decisions or dependency work beyond a safe
-minimal patch. **Patched: 27 bugs** (of 53) across `API-001…API-009`, `WEB-001…WEB-003`;
+**Bugs with no patch (36):** BUG-009, 020, 027, 030, 031, 032, 033, 034, 035, 037, 038, 040,
+041, 042, 043, 044, 045, 046, 047, 048, 049, 050, 051, 052, 053, 054, 055, 056, 057, 058, 059,
+060, 061, 062, 063, 064 — each row states the fix approach; most need product/ownership
+decisions or dependency work beyond a safe minimal patch (055–062 are UI-only fixes found in the
+post-patch sweep, recorded without patches so `patches/` stays consistent with the provided
+tree; **063–064 are fixed directly in Phase 2 code** and covered by regression tests instead of
+a standalone diff). **Patched: 27 bugs** (of 63) across `API-001…API-009`, `WEB-001…WEB-003`;
 IMP-001/002/003 also unpatched (see §5).
 
 ---
@@ -378,7 +407,8 @@ Cross-cutting (**state as found, pre-patch** — post-patch results in §9 Re-te
 | Alerts | **Fail** | BUG-031 (rules unused); dispatch layer absent — BUG-052 |
 | Theme dark/light/system + spec palette | Partial | BUG-036; `theme-toggle-after-light-1920.png` |
 | Responsive 390/768/1366/1920 | **Fail** | BUG-024 (14 overflow failures: 6 @390, 6 @768, 2 @1366 — `test-web-ui-before-fix.txt`); **post-patch: ALL PASS** |
-| Accessibility | **Fail** | BUG-026/027 (`axe-results.json`) |
+| Accessibility | **Fail** | BUG-026 (partly fixed — /ports clean), BUG-027 (both themes), BUG-059/060/061/062 — `evidence/ui-sweep/axe-results-patched.json` |
+| Full-site UI sweep (post-patch) | **Partial** | 12 routes × 3 viewports: 0 console errors, 0 page errors, 0 horizontal overflow, 0 failed API calls, no stuck loaders (`evidence/ui-sweep/sweep-findings.json`) — but 8 new bugs: BUG-055 palette Enter, 056 wizard validation, 057 silent save, 058 dialog semantics, 059–062 axe residuals |
 | KPI correctness | **Pass** | `kpi-filter-check.mjs` |
 | Excel ↔ DB parity | **Pass** (row-by-row) | `evidence/compare-excel-vs-db.txt` — all 106 routes, 34 backends, 48 configs, 12 imported issues match Excel; the 2 count mismatches (ports 19→23, issues 12→21) are scratch-DB test pollution: 4 duplicate/unarchive test ports + 9 scanner auto-issues from test scans |
 | Saved views | Partial | API only (BUG-034) |
@@ -454,8 +484,14 @@ git apply qa-report/patches/ALL.diff            # apply everything (or individua
 - `patches/` — 11 individual patches + `ALL.diff` (32 files, 1783 lines); all pass `git apply --check`;
   sequential application of all 11 verified in a sandbox repo; `tsc` + `vite build` clean with them applied.
 - `tests/` — 4 standalone regression suites + `README.md` (expected FAIL-before / PASS-after matrix).
-- `scripts/` — `compare-excel-vs-db.ts`, `verify-scan.ts`, `ui-console-sweep.mjs`, axe/overflow/functional/export/XSS/KPI/undo/grid checks.
-- `evidence/` — 132 files: screenshots (all pages × themes × viewports × browsers), `axe-results.json`,
+- `scripts/` — `compare-excel-vs-db.ts`, `verify-scan.ts`, `ui-console-sweep.mjs`,
+  `gen-bugs-csv.py` (CSV-from-report generator + consistency assertions),
+  `ui-full-sweep.mjs` (routes × viewports console/overflow sweep), `axe-sweep.mjs`
+  (all pages × themes), `ui-interactive.mjs` (filters, modals, palette, roles, API-fail),
+  axe/overflow/functional/export/XSS/KPI/undo/grid checks.
+- `evidence/` — 199 files (67 in `ui-sweep/`): screenshots (all pages × themes × viewports ×
+  browsers), `axe-results.json`, `ui-sweep/axe-results-patched.json`,
+  `ui-sweep/sweep-findings.json`, `ui-sweep/interactive-findings.json`,
   scanner state before/after (`verify-scan-output.txt`, `verify-scan-after-fix.txt`,
   `verify-scan-baseline-rerun.txt`), test results before/after patches (`test-*-before-fix.txt`
   / `test-*-after-fix.txt`), checklist sweeps (`api-security-sweep.txt`,

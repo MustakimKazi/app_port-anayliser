@@ -9,10 +9,34 @@ const LoginSchema = z.object({
 });
 
 export async function authRoutes(fastify: FastifyInstance) {
+  // In-memory brute-force protection: max 10 failed logins per username+IP
+  // per 15-minute window, then HTTP 429 (no extra dependency needed)
+  const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+  const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+  const LOGIN_MAX_ATTEMPTS = 10;
+
+  function isRateLimited(key: string): boolean {
+    const now = Date.now();
+    const entry = loginAttempts.get(key);
+    if (!entry || entry.resetAt < now) {
+      loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+      return false;
+    }
+    entry.count += 1;
+    return entry.count > LOGIN_MAX_ATTEMPTS;
+  }
+
   fastify.post('/login', async (request: FastifyRequest, reply: FastifyReply) => {
     const parse = LoginSchema.safeParse(request.body);
     if (!parse.success) {
       return reply.status(400).send({ error: 'Invalid username or password' });
+    }
+
+    const rateKey = `${request.ip || 'unknown'}:${parse.data.username}`;
+    if (isRateLimited(rateKey)) {
+      return reply
+        .status(429)
+        .send({ error: 'Too many login attempts. Try again in 15 minutes.' });
     }
 
     const { username, password } = parse.data;
@@ -20,22 +44,27 @@ export async function authRoutes(fastify: FastifyInstance) {
       where: { username }
     });
 
-    if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return reply.status(401).send({ error: 'Invalid credentials' });
     }
 
-    const token = fastify.jwt.sign({
-      id: user.id,
-      username: user.username,
-      role: user.role
-    });
+    loginAttempts.delete(rateKey);
+
+    const token = fastify.jwt.sign(
+      {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      },
+      { expiresIn: '8h' } // tokens must expire (spec: tokens expire in 8h)
+    );
 
     reply.setCookie('access_token', token, {
       path: '/',
       httpOnly: true,
       secure: false, // development / internal
       sameSite: 'lax',
-      maxAge: 86400 * 7 // 7 days
+      maxAge: 8 * 60 * 60 // match JWT lifetime
     });
 
     // Record audit log

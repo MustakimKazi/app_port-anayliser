@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { FileCode, AlertCircle, CheckCircle, Search, Globe, ChevronRight } from 'lucide-react';
+import { FileCode, AlertCircle, Search, ChevronRight, ClipboardPaste } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
 import { ConfigFile } from '../../types';
 
 export function ConfigFilesPage() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'active' | 'backup'>('all');
   const [search, setSearch] = useState('');
 
@@ -103,21 +105,23 @@ export function ConfigFilesPage() {
             <Card
               key={file.id}
               hover
+              onClick={() => navigate(`/config-files/${file.id}`)}
+              data-testid="config-card"
               className={`space-y-3 ${
                 isBackup ? 'border-status-slow/30 bg-status-slow/5' : 'border-border'
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <FileCode
-                    className={`w-4 h-4 ${isBackup ? 'text-status-slow' : 'text-primary'}`}
+                    className={`w-4 h-4 shrink-0 ${isBackup ? 'text-status-slow' : 'text-primary'}`}
                   />
-                  <span className="font-mono text-xs font-bold text-text truncate max-w-[200px]" title={file.filename}>
+                  <span className="font-mono text-xs font-bold text-text truncate" title={file.filename}>
                     {file.filename}
                   </span>
                 </div>
                 <span
-                  className={`text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded-full ${
+                  className={`text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded-full shrink-0 ${
                     isBackup
                       ? 'bg-status-slow/15 text-status-slow border border-status-slow/30'
                       : 'bg-status-up/15 text-status-up border border-status-up/30'
@@ -131,11 +135,28 @@ export function ConfigFilesPage() {
                 {file.description || 'Virtual host configuration'}
               </p>
 
-              {/* Defined routes count */}
+              {/* Defined routes count + content indicator */}
               <div className="pt-2 border-t border-border/60 flex items-center justify-between text-[11px] text-text-muted">
                 <span>Defined Routes:</span>
                 <span className="font-mono font-bold text-text">
                   {file.routes?.length || 0} routes
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                {file.hasContent ? (
+                  <span className="flex items-center gap-1 text-status-up">
+                    <FileCode className="w-3 h-3" />
+                    <span>Config stored</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-status-slow">
+                    <ClipboardPaste className="w-3 h-3" />
+                    <span>No config yet</span>
+                  </span>
+                )}
+                <span className="flex items-center gap-0.5 text-primary">
+                  <span>Open</span>
+                  <ChevronRight className="w-3 h-3" />
                 </span>
               </div>
             </Card>

@@ -17,9 +17,10 @@ import {
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  mobileOpen?: boolean;
 }
 
-export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggle, mobileOpen = false }: SidebarProps) {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Ports', path: '/ports', icon: Server },
@@ -37,7 +38,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     <aside
       className={`fixed top-0 left-0 bottom-0 z-40 bg-surface border-r border-border transition-all duration-300 flex flex-col ${
         isCollapsed ? 'w-20' : 'w-64'
-      }`}
+      } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
     >
       {/* Brand Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-border bg-surface">
@@ -94,8 +95,10 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </div>
           {!isCollapsed && (
             <div className="text-[11px] leading-tight truncate">
-              <div className="font-semibold text-text">Target Server</div>
-              <div className="text-text-muted font-mono truncate">127.0.0.1 (host)</div>
+              <div className="font-semibold text-text">Scan Vantage</div>
+              <div className="text-text-muted font-mono truncate" title="Scanner runs in host mode on this machine (SCANNER_MODE)">
+                this host (host mode)
+              </div>
             </div>
           )}
         </div>

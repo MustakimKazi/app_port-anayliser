@@ -26,15 +26,18 @@ const RouteFilterSchema = z.object({
   showArchived: z.string().optional(),
   q: z.string().optional(),
   sort: z.string().optional(),
-  page: z.coerce.number().default(1),
-  limit: z.coerce.number().default(100)
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
+  limit: z.coerce.number().int().min(1).max(1000).default(100)
 });
 
 export async function routesRoutes(fastify: FastifyInstance) {
   // GET /api/routes - Filterable list of routes
   fastify.get('/routes', async (request: FastifyRequest, reply: FastifyReply) => {
     const parse = RouteFilterSchema.safeParse(request.query);
-    if (!parse.success) return reply.status(400).send({ error: parse.error });
+    if (!parse.success) return reply.status(400).send({
+        error: 'Invalid request parameters',
+        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
+      });
 
     const {
       domain,

@@ -20,3 +20,13 @@ export default defineConfig({
     }
   }
 });
+    port: 3150,
+    host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3100',
+        changeOrigin: true
+      }
+    }
+  }
+});

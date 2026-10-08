@@ -10,11 +10,26 @@ const IssueFilterSchema = z.object({
   q: z.string().optional()
 });
 
+// Validated body: an unvalidated body used to reach Prisma directly and leak
+// the raw PrismaClientValidationError (stack + file paths) to the client
+const IssueCreateSchema = z.object({
+  title: z.string().trim().min(1).max(500),
+  priority: z.string().max(20).optional(),
+  observed: z.string().max(20_000).optional(),
+  recommendation: z.string().max(20_000).optional(),
+  relatedPortId: z.string().nullable().optional(),
+  relatedRouteId: z.string().nullable().optional(),
+  assignee: z.string().max(100).nullable().optional()
+});
+
 export async function issuesRoutes(fastify: FastifyInstance) {
   // GET /api/issues
   fastify.get('/issues', async (request: FastifyRequest, reply: FastifyReply) => {
     const parse = IssueFilterSchema.safeParse(request.query);
-    if (!parse.success) return reply.status(400).send({ error: parse.error });
+    if (!parse.success) return reply.status(400).send({
+        error: 'Invalid request parameters',
+        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
+      });
 
     const { priority, status, source, relatedPortId, q } = parse.data;
     const where: any = {};
@@ -50,7 +65,14 @@ export async function issuesRoutes(fastify: FastifyInstance) {
 
   // POST /api/issues
   fastify.post('/issues', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
+    const parse = IssueCreateSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({
+        error: 'Invalid issue payload',
+        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
+      });
+    }
+    const body = parse.data;
     const created = await prisma.issue.create({
       data: {
         title: body.title,

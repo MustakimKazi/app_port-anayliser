@@ -37,10 +37,13 @@ export class HostListener {
         this.parseNetstatOutput(stdout, results);
         return results;
       } catch (netstatErr) {
-        // If neither command is available (e.g. strict docker container without host network)
-        // Return empty or mock based on mode
-        console.warn('Could not read host listening sockets via ss/netstat');
-        return results;
+        // Neither ss nor netstat worked. Throwing (instead of returning an
+        // empty map) lets the scanner abort the cycle: an empty map would be
+        // indistinguishable from "nothing is listening" and would trigger a
+        // false mass-down / auto-resolve storm.
+        throw new Error(
+          'Could not read host listening sockets: ss and netstat both failed or are unavailable'
+        );
       }
     }
   }

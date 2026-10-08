@@ -1,0 +1,17 @@
+[
+  {
+    "sev": "MED",
+    "where": "issues@desktop",
+    "detail": "1 visible spinner(s) still shown after settle"
+  },
+  {
+    "sev": "MED",
+    "where": "certificates@tablet",
+    "detail": "1 visible spinner(s) still shown after settle"
+  },
+  {
+    "sev": "MED",
+    "where": "settings@mobile",
+    "detail": "1 visible spinner(s) still shown after settle"
+  }
+]

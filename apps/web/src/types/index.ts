@@ -164,6 +164,11 @@ export interface ConfigFile {
   filename: string;
   status: 'active' | 'backup';
   description: string | null;
+  content?: string | null;
+  hasContent?: boolean;
+  contentLength?: number;
+  createdAt?: string;
+  updatedAt?: string;
   routes?: Array<{
     id: string;
     domain: string;
@@ -232,6 +237,13 @@ export interface CertificateInfo {
   isExpiringSoon: boolean;
   status: 'valid' | 'expiring_soon' | 'critical' | 'expired' | 'error';
   error?: string;
+  // Deep-probe fields (Phase 2)
+  san?: string;
+  serialNumber?: string;
+  fingerprint256?: string;
+  signatureAlgorithm?: string;
+  protocol?: string;
+  cipher?: string;
 }
 
 export interface CustomField {

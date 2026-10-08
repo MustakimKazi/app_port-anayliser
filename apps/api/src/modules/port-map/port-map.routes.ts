@@ -57,7 +57,10 @@ export async function portMapRoutes(fastify: FastifyInstance) {
   // GET /api/port-map/free - Find free ports in a specific range
   fastify.get('/port-map/free', async (request: FastifyRequest, reply: FastifyReply) => {
     const parse = FreePortQuerySchema.safeParse(request.query);
-    if (!parse.success) return reply.status(400).send({ error: parse.error });
+    if (!parse.success) return reply.status(400).send({
+        error: 'Invalid request parameters',
+        issues: parse.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
+      });
 
     const { range, count } = parse.data;
     const [minStr, maxStr] = range.split('-');

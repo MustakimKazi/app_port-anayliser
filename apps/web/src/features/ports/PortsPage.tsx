@@ -88,7 +88,7 @@ export function PortsPage() {
   // Fetch current user for role permission check
   const { data: currentUser } = useQuery<{ role: string; username: string }>({
     queryKey: ['me'],
-    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'admin', username: 'admin' }))
+    queryFn: () => apiRequest('/auth/me').catch(() => ({ role: 'viewer', username: 'guest' }))
   });
 
   const isViewer = currentUser?.role === 'viewer';
@@ -101,7 +101,10 @@ export function PortsPage() {
   }, [searchParams]);
 
   // Fetch Ports query
-  const { data, isLoading } = useQuery<{ data: Port[]; pagination: { total: number } }>({
+  const { data, isLoading, isError: isPortsError } = useQuery<{
+    data: Port[];
+    pagination: { total: number; page: number; totalPages: number };
+  }>({
     queryKey: ['ports', searchParams.toString()],
     queryFn: () => {
       const qs = searchParams.toString();
@@ -153,21 +156,29 @@ export function PortsPage() {
 
   const updateFilter = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
+    // changing any filter restarts from page 1
+    if (key !== 'page') next.delete('page');
     if (!value) {
       next.delete(key);
     } else {
       next.set(key, value);
     }
-    setSearchParams(next);
+    // replace: typing a search must not flood browser back-history
+    setSearchParams(next, { replace: true });
   };
 
   const clearAllFilters = () => {
-    setSearchParams(new URLSearchParams());
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
-  // Export current view
+  // Export current view — the active URL filters are passed along so the
+  // exported file matches exactly what is on screen (it used to export the
+  // full unfiltered table, including archived ports)
   const handleExport = (format: 'csv' | 'xlsx' | 'json') => {
-    window.open(`/api/export?entity=ports&format=${format}`, '_blank');
+    const params = new URLSearchParams(searchParams);
+    params.set('entity', 'ports');
+    params.set('format', format);
+    window.open(`/api/export?${params.toString()}`, '_blank');
   };
 
   // Check single target mutation
@@ -472,6 +483,7 @@ export function PortsPage() {
               value={q}
               onChange={(e) => updateFilter('q', e.target.value)}
               placeholder="Search port, domain, process, owner, purpose..."
+              aria-label="Search ports"
               className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text placeholder-text-muted focus:outline-none focus:border-primary"
             />
             {q && (
@@ -486,6 +498,7 @@ export function PortsPage() {
 
           {/* Lifecycle Filter */}
           <select
+            aria-label="Lifecycle filter"
             value={lifecycleFilter}
             onChange={(e) => updateFilter('lifecycle', e.target.value)}
             className="px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary font-medium"
@@ -501,6 +514,7 @@ export function PortsPage() {
 
           {/* Status Filter */}
           <select
+            aria-label="Status filter"
             value={statusFilter}
             onChange={(e) => updateFilter('status', e.target.value)}
             className="px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary"
@@ -514,6 +528,7 @@ export function PortsPage() {
 
           {/* Layer Filter */}
           <select
+            aria-label="Layer filter"
             value={layerFilter}
             onChange={(e) => updateFilter('layer', e.target.value)}
             className="px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary"
@@ -525,6 +540,7 @@ export function PortsPage() {
 
           {/* Protocol Filter */}
           <select
+            aria-label="Protocol filter"
             value={protocolFilter}
             onChange={(e) => updateFilter('protocol', e.target.value)}
             className="px-2.5 py-1.5 rounded-lg bg-surface border border-border-strong text-xs text-text focus:outline-none focus:border-primary"
@@ -552,6 +568,7 @@ export function PortsPage() {
 
             {/* Bind Filter */}
             <select
+              aria-label="Bind filter"
               value={bindFilter}
               onChange={(e) => updateFilter('bind', e.target.value)}
               className="px-2.5 py-1 rounded-md bg-surface border border-border-strong text-xs text-text focus:outline-none"
@@ -563,6 +580,7 @@ export function PortsPage() {
 
             {/* Issues Filter */}
             <select
+              aria-label="Issues filter"
               value={hasIssuesFilter}
               onChange={(e) => updateFilter('hasIssues', e.target.value)}
               className="px-2.5 py-1 rounded-md bg-surface border border-border-strong text-xs text-text focus:outline-none"
@@ -577,6 +595,7 @@ export function PortsPage() {
               <input
                 type="number"
                 placeholder="Min"
+                aria-label="Minimum port number"
                 value={portMin}
                 onChange={(e) => updateFilter('portMin', e.target.value)}
                 className="w-20 px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text font-mono"
@@ -585,6 +604,7 @@ export function PortsPage() {
               <input
                 type="number"
                 placeholder="Max"
+                aria-label="Maximum port number"
                 value={portMax}
                 onChange={(e) => updateFilter('portMax', e.target.value)}
                 className="w-20 px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text font-mono"
@@ -608,6 +628,7 @@ export function PortsPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
+              aria-label="Bulk action"
               value={bulkAction}
               onChange={(e) => setBulkAction(e.target.value)}
               className="px-2.5 py-1 rounded bg-surface border border-border-strong text-xs text-text focus:outline-none"
@@ -624,6 +645,7 @@ export function PortsPage() {
 
             {bulkAction === 'setLifecycle' && (
               <select
+                aria-label="Bulk lifecycle"
                 value={bulkLifecycleInput}
                 onChange={(e) => setBulkLifecycleInput(e.target.value)}
                 className="px-2 py-1 rounded bg-surface border border-border-strong text-xs text-text"
@@ -666,6 +688,7 @@ export function PortsPage() {
                 <th className="py-3 px-3 w-8">
                   <input
                     type="checkbox"
+                    aria-label="Select all visible ports"
                     checked={selectedIds.length > 0 && selectedIds.length === ports.length}
                     onChange={(e) => {
                       if (e.target.checked) setSelectedIds(ports.map((p) => p.id));
@@ -704,6 +727,13 @@ export function PortsPage() {
                     Loading ports...
                   </td>
                 </tr>
+              ) : isPortsError ? (
+                <tr>
+                  <td colSpan={14} className="py-12 text-center text-status-down">
+                    Failed to load ports — the server rejected the current filter parameters
+                    (e.g. an invalid page or limit value).
+                  </td>
+                </tr>
               ) : ports.length === 0 ? (
                 <tr>
                   <td colSpan={14} className="py-12 text-center text-text-muted">
@@ -739,6 +769,7 @@ export function PortsPage() {
                       <td className={`${py} px-3`} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
+                          aria-label={`Select port ${port.port}`}
                           checked={isSelected}
                           onChange={(e) => {
                             if (e.target.checked) setSelectedIds([...selectedIds, port.id]);
@@ -775,13 +806,13 @@ export function PortsPage() {
 
                       {/* Bind (Public vs Local) */}
                       <td className={`${py} px-3`}>
-                        {port.isPublic ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] bg-surface-2 text-text font-mono border border-border">
-                            0.0.0.0 (public)
+                        {port.listenAddress ? (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono border ${port.isPublic ? 'bg-surface-2 text-text border-border' : 'bg-status-slow/20 text-status-slow border-status-slow/30'}`}>
+                            {port.listenAddress} {port.isPublic ? '(public)' : '(local)'}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] bg-status-slow/20 text-status-slow font-mono border border-status-slow/30">
-                            127.0.0.1 (local)
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] bg-surface-2 text-text-muted font-mono border border-border">
+                            not listening
                           </span>
                         )}
                       </td>
@@ -864,6 +895,36 @@ export function PortsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination (backend caps each request at 50 rows by default;
+            without controls, rows past page 1 were unreachable) */}
+        {data?.pagination && data.pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-text-muted">
+            <span>
+              Page {data.pagination.page} of {data.pagination.totalPages} — {data.pagination.total} ports total
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="text-xs"
+                disabled={data.pagination.page <= 1}
+                onClick={() => updateFilter('page', String(data.pagination.page - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="text-xs"
+                disabled={data.pagination.page >= data.pagination.totalPages}
+                onClick={() => updateFilter('page', String(data.pagination.page + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Side Drawer for Selected Port */}
@@ -912,7 +973,7 @@ export function PortsPage() {
                     <span className="font-semibold text-text">24-Hour Uptime Bar</span>
                     <span className="text-text-muted font-mono text-[11px]">Hover block for hour</span>
                   </div>
-                  <div className="grid grid-cols-24 gap-1 h-7">
+                  <div className="grid grid-cols-[repeat(24,minmax(0,1fr))] gap-1 h-7">
                     {portDetail.uptimeBlocks.map((b, idx) => (
                       <div
                         key={idx}
@@ -1074,6 +1135,7 @@ export function PortsPage() {
                           {!isViewer && (
                             <input
                               type="checkbox"
+                              aria-label={`Toggle feature ${feat.key} for port ${portDetail?.port?.port ?? ""}`}
                               checked={isEnabled}
                               onChange={(e) => handleFeatureToggle(feat.key, e.target.checked)}
                               className="w-4 h-4 rounded text-primary focus:ring-primary ml-3"

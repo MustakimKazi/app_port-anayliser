@@ -4,7 +4,7 @@ import prisma from '../../db/prisma.js';
 export async function configFilesRoutes(fastify: FastifyInstance) {
   // GET /api/config-files
   fastify.get('/config-files', async (request: FastifyRequest, reply: FastifyReply) => {
-    const files = await prisma.configFile.findMany({
+    const rawFiles = await prisma.configFile.findMany({
       include: {
         routes: {
           select: {
@@ -22,6 +22,13 @@ export async function configFilesRoutes(fastify: FastifyInstance) {
       ]
     });
 
+    // List payload omits the (potentially large) content; expose a hasContent flag instead
+    const files = rawFiles.map(({ content, ...rest }) => ({
+      ...rest,
+      hasContent: !!content && content.length > 0,
+      contentLength: content ? content.length : 0
+    }));
+
     const activeCount = files.filter(f => f.status === 'active').length;
     const backupCount = files.filter(f => f.status === 'backup').length;
 
@@ -33,6 +40,22 @@ export async function configFilesRoutes(fastify: FastifyInstance) {
         backupCount
       }
     });
+  });
+
+  // GET /api/config-files/:id - full detail incl. stored nginx content + attached routes
+  fastify.get<{ Params: { id: string } }>('/config-files/:id', async (request, reply) => {
+    const { id } = request.params;
+    const file = await prisma.configFile.findUnique({
+      where: { id },
+      include: {
+        routes: {
+          orderBy: [{ portNum: 'asc' }, { path: 'asc' }]
+        }
+      }
+    });
+
+    if (!file) return reply.status(404).send({ error: 'Config file not found' });
+    return reply.send(file);
   });
 
   // POST /api/config-files
@@ -58,23 +81,24 @@ export async function configFilesRoutes(fastify: FastifyInstance) {
 
     return reply.status(201).send(created);
   });
-
   // PATCH /api/config-files/:id
   fastify.patch('/config-files/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = request.params;
     const body = request.body as any;
 
-    const existing = await prisma.configFile.findUnique({ where: { id } });
+    const existing = await prisma.configFile.findUnique({
+      where: { id }
+    });
     if (!existing) return reply.status(404).send({ error: 'Config file not found' });
 
     const updated = await prisma.configFile.update({
       where: { id },
       data: {
         status: body.status !== undefined ? body.status : existing.status,
-        description: body.description !== undefined ? body.description : existing.description
+        description: body.description !== undefined ? body.description : existing.description,
+        content: body.content !== undefined ? body.content : existing.content
       }
     });
-
     await prisma.auditLog.create({
       data: {
         username: (request as any).user?.username || 'admin',

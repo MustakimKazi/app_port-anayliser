@@ -1,0 +1,41 @@
+Post-patch full-site UI bug sweep — 2026-10-07
+==============================================
+IMPORTANT ENV NOTE: during this sweep localhost:5173 was found serving an unrelated
+app (wedding-invitation Vite from ~/Downloads/Documents/cinematic-portfolio/card);
+PortWatch web had auto-moved to http://localhost:5174 (PID 58503). All sweeps below
+target http://localhost:5174 against the API on :3100 (both with the 11 QA patches
+applied by the operator after delivery).
+
+Method & scripts
+----------------
+1. ui-full-sweep.mjs  — 12 routes x 3 viewports (1440/768/390): console errors,
+   page errors, API >=400, horizontal overflow, stuck spinners, empty mains,
+   duplicate ids, img alt -> sweep-findings.json (3 findings, all transient
+   spinners; 0 console errors, 0 overflow, 0 failed API).
+2. axe-sweep.mjs      — 11 pages x dark/light -> axe-results-patched.json:
+   35 rule-hits on 19/22 page-theme combos. color-contrast /issues 129 nodes
+   BOTH themes (4.29:1 dark, 4.26:1 light), select-name routes4/issues3/port-map2,
+   label settings4, heading-order 4 pages, scrollable-region-focusable 3 pages,
+   svg-img-alt dashboard, login landmarks.
+3. ui-interactive.mjs — filters/history depth, pagination, drawer, Add Port wizard,
+   issues workflow, settings tabs/save, palette, shortcuts, theme, API-500 state,
+   logout, viewer role (API 403 OK; Scan Now visible = BUG-053), back button.
+
+Findings -> report IDs
+----------------------
+BUG-055 Medium  palette: Enter/ArrowDown never activate results (mouse click works)
+BUG-056 Medium  Add Port wizard: no client validation until final save (99999 -> API 400 only)
+BUG-057 Low     Settings "Save Scanner Settings": PATCH 200, zero success feedback
+BUG-058 Low     Add Port wizard + port drawer: no role=dialog/aria-modal/focus trap;
+                ESC closes drawer but not the wizard
+BUG-059 Medium  axe scrollable-region-focusable (serious) x3 pages (pre-existing, unrecorded)
+BUG-060 Low     axe heading-order x4 pages (pre-existing + settings)
+BUG-061 Low     axe svg-img-alt dashboard pie sectors (pre-existing, unrecorded)
+BUG-062 Low     login page outside landmarks (landmark-one-main + region, 4 nodes)
+Existing bugs re-confirmed open: BUG-045 (palette advertises G ,), BUG-053 (viewer
+Scan Now), BUG-026 (partly fixed - /ports clean, 13 instances remain), BUG-027
+(both themes now quantified).
+Fixes verified working: overflow 0 at all 3 viewports (024), filter history depth
+unchanged (029), uptime strip 24 cells (028), mutation failure toasts (022),
+dashboard API-500 shows error state not skeleton (023), logout+cookie clear,
+drawer ESC close, port create validation via API 400 toast, issue ack workflow.
