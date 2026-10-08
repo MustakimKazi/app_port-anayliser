@@ -9,14 +9,17 @@ import {
   Layers,
   Plus,
   Archive,
-  Trash2
+  Trash2,
+  Zap,
+  Clock
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { StatusBadge } from '../../components/ui/Badge';
+import { StatusBadge, ActionBadge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
-import { Backend, Server as ServerType } from '../../types';
+import { Drawer } from '../../components/ui/Drawer';
+import { Backend, Route, Server as ServerType } from '../../types';
 import { AddBackendDialog } from './AddBackendDialog';
 import { AddServerModal, ArchiveServerModal } from './ServerModal';
 
@@ -40,6 +43,7 @@ export function BackendsPage() {
   const [isAddBackendOpen, setIsAddBackendOpen] = useState(false);
   const [isAddServerOpen, setIsAddServerOpen] = useState(false);
   const [serverToArchive, setServerToArchive] = useState<ServerType | null>(null);
+  const [backendConfirm, setBackendConfirm] = useState<{ mode: 'archive' | 'delete' } | null>(null);
 
   // Query Servers
   const { data: servers = [] } = useQuery<ServerType[]>({
@@ -51,6 +55,38 @@ export function BackendsPage() {
   const { data: backends = [] } = useQuery<Backend[]>({
     queryKey: ['backends', showArchived],
     queryFn: () => apiRequest(`/backends${showArchived ? '?showArchived=true' : ''}`)
+  });
+
+  // Impact analysis for the selected backend (drawer + archive/delete confirm)
+  const { data: backendImpact, isLoading: impactLoading } = useQuery<{
+    routesCount: number;
+    routes: Route[];
+    warningLevel: 'caution' | 'safe';
+    notice: string;
+  }>({
+    queryKey: ['backend-impact', selectedBackend?.id],
+    queryFn: () => apiRequest(`/backends/${selectedBackend!.id}/impact`),
+    enabled: !!selectedBackend
+  });
+
+  const archiveBackendMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/backends/${id}/archive`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backends'] });
+      queryClient.invalidateQueries({ queryKey: ['topology'] });
+      setBackendConfirm(null);
+      setSelectedBackend(null);
+    }
+  });
+
+  const deleteBackendMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/backends/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backends'] });
+      queryClient.invalidateQueries({ queryKey: ['topology'] });
+      setBackendConfirm(null);
+      setSelectedBackend(null);
+    }
   });
 
   // Query Topology Graph & Blast Radius
@@ -285,7 +321,12 @@ export function BackendsPage() {
                 </thead>
                 <tbody className="divide-y divide-border font-sans">
                   {backends.map((b) => (
-                    <tr key={b.id} className="hover:bg-surface-2 transition-colors">
+                    <tr
+                      key={b.id}
+                      className="hover:bg-surface-2 transition-colors cursor-pointer"
+                      data-testid="backend-row"
+                      onClick={() => setSelectedBackend(b)}
+                    >
                       <td className="py-2.5 px-3 font-mono font-bold text-text">
                         {b.host}:{b.port}
                       </td>
@@ -509,62 +550,6 @@ export function BackendsPage() {
         server={serverToArchive}
         onClose={() => setServerToArchive(null)}
       />
-    </div>
-  );
-}
-        </Card>
-      )}
-
-      {/* Rename Server Modal */}
-      <Modal
-        isOpen={!!editingServer}
-        onClose={() => setEditingServer(null)}
-        title="Rename Server Cluster"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Server Name</label>
-            <input
-              type="text"
-              value={serverNameInput}
-              onChange={(e) => setServerNameInput(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-sm text-text focus:outline-none focus:border-primary"
-              placeholder="e.g. App Server A"
-            />
-          </div>
-          <div className="text-xs text-text-muted">
-            Host IP:{' '}
-            <span className="font-mono font-semibold text-primary">{editingServer?.host}</span>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" size="sm" onClick={() => setEditingServer(null)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleSaveRename}>
-              Save Name
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Add Backend Dialog */}
-      <AddBackendDialog
-        isOpen={isAddBackendOpen}
-        onClose={() => setIsAddBackendOpen(false)}
-      />
-
-      {/* Add Server Modal */}
-      <AddServerModal
-        isOpen={isAddServerOpen}
-        onClose={() => setIsAddServerOpen(false)}
-      />
-
-      {/* Archive Server Modal with Safe Dependency Check */}
-      <ArchiveServerModal
-        server={serverToArchive}
-        onClose={() => setServerToArchive(null)}
-      />
-
       {/* Backend Detail Drawer */}
       <Drawer
         isOpen={!!selectedBackend}

@@ -429,13 +429,3 @@ export function DashboardPage() {
     </div>
   );
 }
-                  {new Date(evt.at).toLocaleTimeString()}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-}

@@ -1,7 +1,31 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import prisma from '../../db/prisma.js';
 
-export async function alertsRoutes(fastify: FastifyInstance) {
+const SECRET_MASK = '********';
+
+function isMaskedValue(value: unknown): boolean {
+  return typeof value === 'string' && (/^\*{4,}$/.test(value) || /^\u2022{4,}$/.test(value));
+}
+
+function maskSetting<T extends object>(setting: T | null): T | null {
+  if (!setting) return setting;
+  const clone: any = { ...setting };
+  if (clone.slackDiscordWebhook) clone.slackDiscordWebhook = SECRET_MASK;
+  if (clone.genericWebhook) clone.genericWebhook = SECRET_MASK;
+  if (clone.telegramConfig && clone.telegramConfig.botToken) {
+    clone.telegramConfig = { ...clone.telegramConfig, botToken: SECRET_MASK };
+  }
+  if (clone.smtpConfig && clone.smtpConfig.password) {
+    clone.smtpConfig = { ...clone.smtpConfig, password: SECRET_MASK };
+  }
+  return clone as T;
+}
+
+
+export async function alertsRoutes(
+  fastify: FastifyInstance,
+  opts?: { scanner?: { reloadSettings: () => Promise<void> } }
+) {
   // GET /api/alerts/rules
   fastify.get('/alerts/rules', async (request: FastifyRequest, reply: FastifyReply) => {
     const rules = await prisma.alertRule.findMany({
@@ -77,44 +101,6 @@ export async function alertsRoutes(fastify: FastifyInstance) {
     });
     return reply.send(logs);
   });
-
-  // GET & PATCH /api/settings
-  fastify.get('/settings', async (request: FastifyRequest, reply: FastifyReply) => {
-    const setting = await prisma.setting.findUnique({
-      where: { id: 'global' }
-    });
-    return reply.send(setting);
-  });
-
-  fastify.patch('/settings', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
-    const updated = await prisma.setting.upsert({
-      where: { id: 'global' },
-      update: {
-        scanIntervalSec: body.scanIntervalSec !== undefined ? parseInt(body.scanIntervalSec) : undefined,
-        tcpTimeoutMs: body.tcpTimeoutMs !== undefined ? parseInt(body.tcpTimeoutMs) : undefined,
-        slowThresholdMs: body.slowThresholdMs !== undefined ? parseInt(body.slowThresholdMs) : undefined,
-        concurrencyLimit: body.concurrencyLimit !== undefined ? parseInt(body.concurrencyLimit) : undefined,
-        retentionDays: body.retentionDays !== undefined ? parseInt(body.retentionDays) : undefined,
-        slackDiscordWebhook: body.slackDiscordWebhook !== undefined ? body.slackDiscordWebhook : undefined,
-        genericWebhook: body.genericWebhook !== undefined ? body.genericWebhook : undefined,
-        telegramConfig: body.telegramConfig !== undefined ? body.telegramConfig : undefined,
-        smtpConfig: body.smtpConfig !== undefined ? body.smtpConfig : undefined
-      },
-      create: {
-        id: 'global',
-        scanIntervalSec: body.scanIntervalSec ? parseInt(body.scanIntervalSec) : 30,
-        tcpTimeoutMs: body.tcpTimeoutMs ? parseInt(body.tcpTimeoutMs) : 3000,
-        slowThresholdMs: body.slowThresholdMs ? parseInt(body.slowThresholdMs) : 1500,
-        concurrencyLimit: body.concurrencyLimit ? parseInt(body.concurrencyLimit) : 20,
-        retentionDays: body.retentionDays ? parseInt(body.retentionDays) : 90
-      }
-    });
-    return reply.send(updated);
-  });
-}
-  return clone;
-}
 
   // GET & PATCH /api/settings
   fastify.get('/settings', async (request: FastifyRequest, reply: FastifyReply) => {

@@ -14,6 +14,7 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { overviewRoutes } from './modules/overview/overview.routes.js';
 import { portsRoutes } from './modules/ports/ports.routes.js';
 import { routesRoutes } from './modules/routes/routes.routes.js';
+import { domainsRoutes } from './modules/domains/domains.routes.js';
 import { backendsRoutes } from './modules/backends/backends.routes.js';
 import { serversRoutes } from './modules/servers/servers.routes.js';
 import { issuesRoutes } from './modules/issues/issues.routes.js';
@@ -165,6 +166,7 @@ export function buildApp() {
     await api.register(overviewRoutes, { scanner });
     await api.register(portsRoutes, { scanner });
     await api.register(routesRoutes);
+    await api.register(domainsRoutes);
     await api.register(backendsRoutes, { scanner });
     await api.register(serversRoutes);
     await api.register(issuesRoutes);
@@ -173,7 +175,7 @@ export function buildApp() {
     await api.register(portMapRoutes);
     await api.register(historyRoutes);
     await api.register(customFieldsRoutes);
-    await api.register(alertsRoutes);
+    await api.register(alertsRoutes, { scanner });
     await api.register(auditRoutes);
     await api.register(savedViewsRoutes);
     await api.register(importExportRoutes);

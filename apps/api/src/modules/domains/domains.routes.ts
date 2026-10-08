@@ -30,7 +30,7 @@ export async function domainsRoutes(fastify: FastifyInstance) {
         archivedAt: true,
         updatedAt: true,
         backend: { select: { host: true, port: true } },
-        configFile: { select: { filename: true } },
+        configFile: { select: { id: true, filename: true } },
         port: { select: { purpose: true, protocol: true } }
       },
       orderBy: { domain: 'asc' }
@@ -70,7 +70,7 @@ export async function domainsRoutes(fastify: FastifyInstance) {
     const domains = Array.from(map.values())
       .map((e) => ({
         ...e,
-        ports: Array.from(e.ports).sort((a, b) => (a || 0) - (b || 0)),
+        ports: Array.from<number | null>(e.ports).sort((a, b) => (a || 0) - (b || 0)),
         backends: Array.from(e.backends.values()),
         configFiles: Array.from(e.configFiles.values())
       }))

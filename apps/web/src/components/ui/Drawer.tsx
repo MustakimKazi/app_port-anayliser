@@ -38,6 +38,8 @@ export function Drawer({
 
       <div className="fixed inset-y-0 right-0 flex pl-10 max-w-full">
         <div
+          role="dialog"
+          aria-modal="true"
           className={`w-screen ${width} bg-surface border-l border-border shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out`}
         >
           {/* Header */}

@@ -18,8 +18,8 @@ export default defineConfig({
         changeOrigin: true
       }
     }
-  }
-});
+  },
+  preview: {
     port: 3150,
     host: true,
     proxy: {

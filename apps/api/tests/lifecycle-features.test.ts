@@ -7,9 +7,13 @@ import { z } from 'zod';
 describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal', () => {
   const { app, scanner } = buildApp();
   let defaultServerId: string;
+  let adminCookie: { access_token: string };
+  let viewerCookie: { access_token: string };
 
   beforeAll(async () => {
     await app.ready();
+    adminCookie = { access_token: app.jwt.sign({ id: 'admin', username: 'admin', role: 'admin' }) };
+    viewerCookie = { access_token: app.jwt.sign({ id: 'viewer', username: 'viewer', role: 'viewer' }) };
     const server = await prisma.server.findFirst();
     if (server) {
       defaultServerId = server.id;
@@ -37,7 +41,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const res = await app.inject({
       method: 'POST',
       url: '/api/ports',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: {
         port: testPort,
         layer: 'http',
@@ -66,7 +70,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const dupRes = await app.inject({
       method: 'POST',
       url: '/api/ports',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: {
         port: testPort,
         layer: 'http',
@@ -87,6 +91,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const dbCheckRes = await app.inject({
       method: 'POST',
       url: '/api/ports/validate',
+      cookies: adminCookie,
       body: {
         port: 6379,
         expectedBind: '0.0.0.0',
@@ -102,6 +107,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const collCheckRes = await app.inject({
       method: 'POST',
       url: '/api/ports/validate',
+      cookies: adminCookie,
       body: {
         port: 8080,
         expectedBind: '127.0.0.1'
@@ -122,7 +128,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const rangeRes = await app.inject({
       method: 'POST',
       url: '/api/ports/bulk',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: {
         mode: 'range',
         rangeStart,
@@ -148,7 +154,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const pasteRes = await app.inject({
       method: 'POST',
       url: '/api/ports/bulk',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: {
         mode: 'list',
         importStrategy: 'valid_only',
@@ -188,7 +194,8 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     // Overview attention
     const overviewRes = await app.inject({
       method: 'GET',
-      url: '/api/overview'
+      url: '/api/overview',
+      cookies: adminCookie
     });
     expect(overviewRes.statusCode).toBe(200);
     const overview = JSON.parse(overviewRes.body);
@@ -246,7 +253,8 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     // Verify it shows up in GET /api/features/registry
     const regRes = await app.inject({
       method: 'GET',
-      url: '/api/features/registry'
+      url: '/api/features/registry',
+      cookies: adminCookie
     });
     expect(regRes.statusCode).toBe(200);
     const features = JSON.parse(regRes.body);
@@ -258,7 +266,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const toggleRes = await app.inject({
       method: 'PATCH',
       url: '/api/features/registry/custom_health_probe',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: { enabled: false }
     });
     expect(toggleRes.statusCode).toBe(200);
@@ -273,7 +281,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const presetRes = await app.inject({
       method: 'POST',
       url: '/api/feature-presets',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: {
         name: 'Automated Test Preset',
         description: 'Testing preset creation and bulk diff preview',
@@ -298,7 +306,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const diffRes = await app.inject({
       method: 'POST',
       url: '/api/ports/features/apply-preset',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: {
         presetId: preset.id,
         presetName: 'Automated Test Preset',
@@ -315,7 +323,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const delPresetRes = await app.inject({
       method: 'DELETE',
       url: `/api/feature-presets/${preset.id}`,
-      headers: { 'x-role': 'admin' }
+      cookies: adminCookie
     });
     expect(delPresetRes.statusCode).toBe(200);
 
@@ -352,7 +360,8 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     // 8a: Impact preview
     const impactRes = await app.inject({
       method: 'GET',
-      url: `/api/ports/${port.id}/impact`
+      url: `/api/ports/${port.id}/impact`,
+      cookies: adminCookie
     });
     expect(impactRes.statusCode).toBe(200);
     const impact = JSON.parse(impactRes.body);
@@ -363,24 +372,24 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const archiveRes = await app.inject({
       method: 'POST',
       url: `/api/ports/${port.id}/archive`,
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: { reason: 'Decommissioning' }
     });
     expect(archiveRes.statusCode).toBe(200);
 
     // Verify it is hidden from default ports list
-    const listRes = await app.inject({ method: 'GET', url: `/api/ports?portMin=${testPort}&portMax=${testPort}` });
+    const listRes = await app.inject({ method: 'GET', url: `/api/ports?portMin=${testPort}&portMax=${testPort}`, cookies: adminCookie });
     expect(JSON.parse(listRes.body).data.length).toBe(0);
 
     // Verify it appears with showArchived=true
-    const archivedListRes = await app.inject({ method: 'GET', url: `/api/ports?portMin=${testPort}&portMax=${testPort}&showArchived=true` });
+    const archivedListRes = await app.inject({ method: 'GET', url: `/api/ports?portMin=${testPort}&portMax=${testPort}&showArchived=true`, cookies: adminCookie });
     expect(JSON.parse(archivedListRes.body).data.length).toBe(1);
 
     // 8c: Restore port
     const restoreRes = await app.inject({
       method: 'POST',
       url: `/api/ports/${port.id}/restore`,
-      headers: { 'x-role': 'admin' }
+      cookies: adminCookie
     });
     expect(restoreRes.statusCode).toBe(200);
 
@@ -388,7 +397,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const permFailRes = await app.inject({
       method: 'DELETE',
       url: `/api/ports/${port.id}?confirm=${testPort}`,
-      headers: { 'x-role': 'admin' }
+      cookies: adminCookie
     });
     expect(permFailRes.statusCode).toBe(409); // Blocked because active route attached
 
@@ -396,7 +405,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const permRes = await app.inject({
       method: 'DELETE',
       url: `/api/ports/${port.id}?confirm=${testPort}&deleteAttachedRoutes=true`,
-      headers: { 'x-role': 'admin' }
+      cookies: adminCookie
     });
     expect(permRes.statusCode).toBe(200);
 
@@ -410,7 +419,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const restoreSnapRes = await app.inject({
       method: 'POST',
       url: `/api/trash/restore-snapshot/${snapshot?.id}`,
-      headers: { 'x-role': 'admin' }
+      cookies: adminCookie
     });
     expect(restoreSnapRes.statusCode).toBe(200);
 
@@ -440,7 +449,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const addRes = await app.inject({
       method: 'POST',
       url: '/api/ports',
-      headers: { 'x-role': 'admin' },
+      cookies: adminCookie,
       body: {
         port: reusePort,
         layer: 'http',
@@ -465,7 +474,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const postRes = await app.inject({
       method: 'POST',
       url: '/api/ports',
-      headers: { 'x-role': 'viewer' },
+      cookies: viewerCookie,
       body: {
         port: 44444,
         layer: 'http',
@@ -479,7 +488,7 @@ describe('PortWatch Prompt 6: Port Lifecycle, Features, Presets & Safe Removal',
     const delRes = await app.inject({
       method: 'DELETE',
       url: '/api/ports/dummy-id',
-      headers: { 'x-role': 'viewer' }
+      cookies: viewerCookie
     });
     expect(delRes.statusCode).toBe(403);
   });

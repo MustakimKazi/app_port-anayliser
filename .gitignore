@@ -1,5 +1,13 @@
 node_modules
 dist
 test-results
+playwright-report
+coverage
+*.tsbuildinfo
+*.log
 .env
+.env.*
+!.env.example
+db/backups/
+qa-report/
 .DS_Store

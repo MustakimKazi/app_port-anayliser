@@ -14,7 +14,8 @@ import {
   Plus,
   Trash2,
   Archive,
-  RotateCcw
+  RotateCcw,
+  Info
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -22,9 +23,13 @@ import { Button } from '../../components/ui/Button';
 import { ActionBadge, UnresolvedBadge } from '../../components/ui/Badge';
 import { Drawer } from '../../components/ui/Drawer';
 import { CodeBlock } from '../../components/ui/CodeBlock';
+import { buildNginxSnippet } from '../../lib/nginx';
 import { Route } from '../../types';
 import { AddRouteDialog } from './AddRouteDialog';
 import { RemoveRouteModal } from './RemoveRouteModal';
+import { DomainDrawer } from './DomainDrawer';
+import { DeleteDomainDialog } from './DeleteDomainDialog';
+import { AddDomainWizard } from './AddDomainWizard';
 
 export function RoutesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -53,6 +58,9 @@ export function RoutesPage() {
   // Dialog states
   const [isAddRouteOpen, setIsAddRouteOpen] = useState(false);
   const [routeToRemove, setRouteToRemove] = useState<Route | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [domainToDelete, setDomainToDelete] = useState<string | null>(null);
+  const [isAddDomainOpen, setIsAddDomainOpen] = useState(false);
 
   // Restore route mutation
   const restoreRouteMutation = useMutation({
@@ -77,7 +85,9 @@ export function RoutesPage() {
   });
 
   // Query detail for drawer
-  const { data: routeDetail } = useQuery<{ route: Route; nginxSnippet: string }>({
+  const { data: routeDetail } = useQuery<
+    Route & { issues?: Array<{ id: string; title: string; status: string }> }
+  >({
     queryKey: ['route-detail', selectedRouteId],
     queryFn: () => apiRequest(`/routes/${selectedRouteId}`),
     enabled: !!selectedRouteId
@@ -126,6 +136,7 @@ export function RoutesPage() {
 
         <div className="flex items-center gap-2.5">
           {!isViewer && (
+            <>
             <Button
               variant="primary"
               size="sm"
@@ -135,6 +146,18 @@ export function RoutesPage() {
               <Plus className="w-3.5 h-3.5" />
               <span>Add Route</span>
             </Button>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="add-domain-btn"
+              onClick={() => setIsAddDomainOpen(true)}
+              className="text-xs flex items-center gap-1.5"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Add Domain</span>
+            </Button>
+            </>
           )}
 
           <Button
@@ -260,6 +283,32 @@ export function RoutesPage() {
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
+                    <button
+                      type="button"
+                      data-testid="domain-info-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedDomain(domain);
+                      }}
+                      className="p-1 rounded text-text-muted hover:text-primary hover:bg-surface-2"
+                      title="Domain details"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
+                    {!isViewer && (
+                      <button
+                        type="button"
+                        data-testid="domain-remove-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDomainToDelete(domain);
+                        }}
+                        className="p-1 rounded text-text-muted hover:text-status-down hover:bg-surface-2"
+                        title="Archive / delete domain"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -393,16 +442,16 @@ export function RoutesPage() {
         isOpen={!!selectedRouteId}
         onClose={() => setSelectedRouteId(null)}
         title={
-          routeDetail?.route ? (
+          routeDetail ? (
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-primary" />
-              <span>{routeDetail.route.domain}</span>
+              <span>{routeDetail.domain}</span>
             </div>
           ) : (
             'Route Details'
           )
         }
-        subtitle={routeDetail?.route?.path}
+        subtitle={routeDetail?.path}
       >
         {routeDetail && (
           <div className="space-y-6">
@@ -411,25 +460,25 @@ export function RoutesPage() {
               <div className="p-3 rounded-lg border border-border bg-surface-2/60">
                 <span className="text-text-muted">Action</span>
                 <div className="mt-1">
-                  <ActionBadge action={routeDetail.route.action} />
+                  <ActionBadge action={routeDetail.action} />
                 </div>
               </div>
               <div className="p-3 rounded-lg border border-border bg-surface-2/60">
                 <span className="text-text-muted">Port & Protocol</span>
                 <p className="font-mono text-text mt-1">
-                  Port :{routeDetail.route.portNum || routeDetail.route.portRaw} ({routeDetail.route.protocol})
+                  Port :{routeDetail.portNum || routeDetail.portRaw} ({routeDetail.protocol})
                 </p>
               </div>
               <div className="p-3 rounded-lg border border-border bg-surface-2/60">
                 <span className="text-text-muted">Target Type</span>
                 <p className="font-mono text-primary mt-1 uppercase text-[11px]">
-                  {routeDetail.route.targetType}
+                  {routeDetail.targetType}
                 </p>
               </div>
               <div className="p-3 rounded-lg border border-border bg-surface-2/60">
                 <span className="text-text-muted">Config File</span>
                 <p className="font-mono text-text mt-1">
-                  {routeDetail.route.configFile?.filename || 'sites-enabled/default.conf'}
+                  {routeDetail.configFile?.filename || 'sites-enabled/default.conf'}
                 </p>
               </div>
             </div>
@@ -438,95 +487,11 @@ export function RoutesPage() {
             <div className="p-4 rounded-xl border border-border bg-surface-2/40 space-y-2">
               <span className="text-xs font-semibold text-text">Forwarding Destination</span>
               <div className="p-2.5 rounded bg-surface-2 border border-border font-mono text-xs text-primary break-all">
-                {routeDetail.route.targetRaw || 'Direct static / return'}
+                {routeDetail.targetRaw || 'Direct static / return'}
               </div>
-              {routeDetail.route.backend && (
+              {routeDetail.backend && (
                 <div className="text-xs text-text-muted flex items-center justify-between pt-1">
-                  <span>Backend Server: {routeDetail.route.backend.server?.name || 'Local Server'}</span>
-                  <span className="font-mono font-semibold text-text">
-                    {routeDetail.route.backend.host}:{routeDetail.route.backend.port}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Generated Nginx Snippet with Copy */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-text flex items-center gap-1.5">
-                  <Code className="w-4 h-4 text-primary" />
-                  <span>Nginx Configuration Preview</span>
-                </span>
-              </div>
-              <CodeBlock code={routeDetail.nginxSnippet} />
-            </div>
-
-            {/* Notes */}
-            {routeDetail.route.notes && (
-              <div className="p-3 rounded-lg bg-surface-2/60 border border-border text-xs text-text">
-                <span className="text-text-muted font-semibold block mb-1">Documentation Notes:</span>
-                {routeDetail.route.notes}
-              </div>
-            )}
-
-            {/* Lifecycle & Archive Actions */}
-            <div className="pt-2 border-t border-border">
-              {routeDetail.route.archivedAt ? (
-                <div className="p-3 rounded-lg bg-surface-2 border border-border flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-text">This route is archived</div>
-                    <div className="text-[11px] text-text-muted">
-                      Archived on {new Date(routeDetail.route.archivedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  {!isViewer && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => restoreRouteMutation.mutate(routeDetail.route.id)}
-                      isLoading={restoreRouteMutation.isPending}
-                      className="text-xs flex items-center gap-1"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Restore Route</span>
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                !isViewer && (
-                  <div className="flex justify-end">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setRouteToRemove(routeDetail.route)}
-                      className="text-xs flex items-center gap-1.5 text-status-down hover:bg-status-down/10 hover:border-status-down/30"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                      <span>Archive / Remove Route</span>
-                    </Button>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        )}
-      </Drawer>
-
-      {/* Add Route Dialog */}
-      <AddRouteDialog
-        isOpen={isAddRouteOpen}
-        onClose={() => setIsAddRouteOpen(false)}
-      />
-
-      {/* Remove Route Modal */}
-      <RemoveRouteModal
-        route={routeToRemove}
-        onClose={() => setRouteToRemove(null)}
-        onArchived={() => setSelectedRouteId(null)}
-      />
-    </div>
-  );
-}
+                  <span>Backend Server: {routeDetail.backend.server?.name || 'Local Server'}</span>
                   <span className="font-mono font-semibold text-text">
                     {routeDetail.backend.host}:{routeDetail.backend.port}
                   </span>
@@ -552,7 +517,7 @@ export function RoutesPage() {
                   <Shield className="w-4 h-4 text-status-slow" />
                   <span>Open Issues ({routeDetail.issues.length})</span>
                 </span>
-                {routeDetail.issues.slice(0, 5).map((iss: any) => (
+                {routeDetail.issues.slice(0, 5).map((iss) => (
                   <div key={iss.id} className="flex items-center justify-between text-[11px]">
                     <span className="text-text-muted truncate">{iss.title}</span>
                     <span className="font-mono text-text-muted uppercase">{iss.status}</span>

@@ -42,6 +42,24 @@ export class ScannerService {
     }
   }
 
+  async reloadSettings(): Promise<void> {
+    const setting = await this.prisma.setting.findUnique({ where: { id: 'global' } });
+    if (setting) {
+      config.scanIntervalSec = setting.scanIntervalSec;
+      config.tcpTimeoutMs = setting.tcpTimeoutMs;
+      config.slowThresholdMs = setting.slowThresholdMs;
+      config.concurrencyLimit = setting.concurrencyLimit;
+      config.retentionDays = setting.retentionDays;
+    }
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = setInterval(() => {
+        this.runScan().catch((err) => console.error('Periodic scan error:', err));
+      }, config.scanIntervalSec * 1000);
+      console.log(`Scanner settings reloaded (interval: ${config.scanIntervalSec}s)`);
+    }
+  }
+
   getLastScanTime() {
     return this.lastScanTime;
   }

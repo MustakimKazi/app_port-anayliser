@@ -16,6 +16,7 @@ import { RoutesPage } from "./features/routes/RoutesPage";
 import { BackendsPage } from "./features/backends/BackendsPage";
 import { IssuesPage } from "./features/issues/IssuesPage";
 import { ConfigFilesPage } from "./features/config-files/ConfigFilesPage";
+import { ConfigFileDetailPage } from "./features/config-files/ConfigFileDetailPage";
 import { CertificatesPage } from "./features/certificates/CertificatesPage";
 import { PortMapPage } from "./features/port-map/PortMapPage";
 import { HistoryPage } from "./features/history/HistoryPage";
@@ -89,6 +90,7 @@ export function App() {
               <Route path="backends" element={<BackendsPage />} />
               <Route path="issues" element={<IssuesPage />} />
               <Route path="config-files" element={<ConfigFilesPage />} />
+              <Route path="config-files/:id" element={<ConfigFileDetailPage />} />
               <Route path="certificates" element={<CertificatesPage />} />
               <Route path="port-map" element={<PortMapPage />} />
               <Route path="history" element={<HistoryPage />} />
@@ -101,7 +103,5 @@ export function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;
 
 export default App;

@@ -5,7 +5,7 @@ test.use({ baseURL: 'http://localhost:5174' });
 async function login(page: Page) {
   await page.goto('/login', { waitUntil: 'networkidle' });
   await page.fill('input[type="text"], input[name="username"]', 'admin');
-  await page.fill('input[type="password"]', 'admin');
+  await page.fill('input[type="password"]', 'HgkO916f3APE');
   await page.click('button[type="submit"]');
   await page.waitForTimeout(800);
 }

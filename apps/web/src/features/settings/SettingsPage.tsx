@@ -804,21 +804,3 @@ export function SettingsPage() {
     </div>
   );
 }
-                      <td className="py-2.5 px-4 uppercase text-[11px] font-bold text-primary">
-                        {log.action}
-                      </td>
-                      <td className="py-2.5 px-4 text-text">{log.entity}</td>
-                      <td className="py-2.5 px-4 font-mono text-text-muted text-[11px]">
-                        {log.entityId || '—'}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}

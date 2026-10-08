@@ -4,9 +4,11 @@ import prisma from '../src/db/prisma.js';
 
 describe('PortWatch API Integration Tests', () => {
   const { app, scanner } = buildApp();
+  let adminCookie: { access_token: string };
 
   beforeAll(async () => {
     await app.ready();
+    adminCookie = { access_token: app.jwt.sign({ id: 'admin', username: 'admin', role: 'admin' }) };
   });
 
   afterAll(async () => {
@@ -28,7 +30,8 @@ describe('PortWatch API Integration Tests', () => {
   it('GET /api/overview returns KPI counters and chart collections', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/api/overview'
+      url: '/api/overview',
+      cookies: adminCookie
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -42,7 +45,8 @@ describe('PortWatch API Integration Tests', () => {
   it('GET /api/ports supports multi-field filter combination and pagination', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/api/ports?layer=http&protocol=HTTP&page=1&limit=10'
+      url: '/api/ports?layer=http&protocol=HTTP&page=1&limit=10',
+      cookies: adminCookie
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -57,7 +61,8 @@ describe('PortWatch API Integration Tests', () => {
   it('GET /api/routes filters by action and unresolved status', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/api/routes?unresolved=true'
+      url: '/api/routes?unresolved=true',
+      cookies: adminCookie
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -70,7 +75,8 @@ describe('PortWatch API Integration Tests', () => {
   it('GET /api/topology returns nodes, edges, and blast radius maps', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/api/topology'
+      url: '/api/topology',
+      cookies: adminCookie
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
