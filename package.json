@@ -11,6 +11,7 @@
     "dev:web": "npm run dev --workspace=@portwatch/web",
     "build": "npm run build --workspace=@portwatch/api && npm run build --workspace=@portwatch/web",
     "postinstall": "npm run prisma:generate",
+    "reset-password": "tsx scripts/reset-password.ts",
     "seed": "tsx scripts/seed.ts",
     "test": "npm run test --workspace=@portwatch/api",
     "check:contrast": "tsx scripts/check-contrast.ts",

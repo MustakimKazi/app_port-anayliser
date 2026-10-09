@@ -503,21 +503,21 @@ export async function importParsedData(
 
   // Step 7: Create Default Admin User & Settings & Alert Rules
   const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-  const existingAdmin = await prisma.user.findUnique({
-    where: { username: adminUsername }
+  const rawPass = process.env.ADMIN_PASSWORD || 'HgkO916f3APE';
+  const hash = bcrypt.hashSync(rawPass, 10);
+  await prisma.user.upsert({
+    where: { username: adminUsername },
+    update: {
+      passwordHash: hash,
+      role: 'admin'
+    },
+    create: {
+      username: adminUsername,
+      passwordHash: hash,
+      role: 'admin',
+      email: process.env.ADMIN_EMAIL || 'admin@leadowserver.local'
+    }
   });
-  if (!existingAdmin) {
-    const rawPass = process.env.ADMIN_PASSWORD || 'admin';
-    const hash = bcrypt.hashSync(rawPass, 10);
-    await prisma.user.create({
-      data: {
-        username: adminUsername,
-        passwordHash: hash,
-        role: 'admin',
-        email: process.env.ADMIN_EMAIL || 'admin@leadowserver.local'
-      }
-    });
-  }
 
   // Default Viewer user for convenience
   const existingViewer = await prisma.user.findUnique({

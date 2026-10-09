@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { buildApp } from './app.js';
 import { config } from './config/env.js';
 import prisma from './db/prisma.js';
@@ -84,6 +85,24 @@ async function start() {
     console.log('✅ Database view v_port_overview ensured.');
   } catch (viewErr) {
     console.warn('⚠️ Warning: Failed to ensure database view v_port_overview:', viewErr);
+  }
+
+  // Ensure admin user password matches ADMIN_PASSWORD from .env
+  try {
+    const adminHash = bcrypt.hashSync(config.adminPassword, 10);
+    await prisma.user.upsert({
+      where: { username: config.adminUsername },
+      update: { passwordHash: adminHash },
+      create: {
+        username: config.adminUsername,
+        passwordHash: adminHash,
+        role: 'admin',
+        email: config.adminEmail
+      }
+    });
+    console.log(`✅ Admin credentials synchronized for '${config.adminUsername}'.`);
+  } catch (authErr) {
+    console.warn('⚠️ Warning: Failed to sync admin credentials:', authErr);
   }
 
   const { app, scanner } = buildApp();
