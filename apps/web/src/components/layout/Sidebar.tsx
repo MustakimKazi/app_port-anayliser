@@ -71,7 +71,7 @@ export function Sidebar({ isCollapsed, onToggle, mobileOpen = false }: SidebarPr
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all group ${
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group ${
                   isActive
                     ? 'bg-primary/10 text-primary font-semibold border border-primary/30 shadow-sm'
                     : 'text-text-muted hover:text-text hover:bg-surface-2'
@@ -79,7 +79,7 @@ export function Sidebar({ isCollapsed, onToggle, mobileOpen = false }: SidebarPr
               }
               title={isCollapsed ? item.name : undefined}
             >
-              <Icon className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+              <Icon className="w-[18px] h-[18px] shrink-0 transition-transform group-hover:scale-110" />
               {!isCollapsed && <span className="truncate">{item.name}</span>}
             </NavLink>
           );

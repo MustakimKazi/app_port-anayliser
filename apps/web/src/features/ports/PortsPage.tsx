@@ -101,7 +101,7 @@ export function PortsPage() {
   }, [searchParams]);
 
   // Fetch Ports query
-  const { data, isLoading, isError: isPortsError } = useQuery<{
+  const { data, isLoading, isError: isPortsError, error: portsError } = useQuery<{
     data: Port[];
     pagination: { total: number; page: number; totalPages: number };
   }>({
@@ -730,8 +730,20 @@ export function PortsPage() {
               ) : isPortsError ? (
                 <tr>
                   <td colSpan={14} className="py-12 text-center text-status-down">
-                    Failed to load ports — the server rejected the current filter parameters
-                    (e.g. an invalid page or limit value).
+                    <div className="max-w-md mx-auto space-y-2">
+                      <div className="font-semibold text-sm">Failed to load ports</div>
+                      <div className="text-xs text-text-muted">
+                        {(portsError as Error)?.message ||
+                          'The server rejected the current filter parameters or the database view (v_port_overview) is missing.'}
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => clearAllFilters()}
+                      >
+                        Reset Filters
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ) : ports.length === 0 ? (

@@ -19,28 +19,28 @@ export function checkAdminRole(request: FastifyRequest, reply: FastifyReply): bo
   return true;
 }
 
+const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val);
+
 const PortFilterSchema = z.object({
-  status: z.string().optional(),
-  layer: z.string().optional(),
-  protocol: z.string().optional(),
-  bind: z.enum(['public', 'local']).optional(),
-  hasIssues: z.string().optional(),
-  issuePriority: z.string().optional(),
-  portMin: z.coerce.number().optional(),
-  portMax: z.coerce.number().optional(),
-  q: z.string().optional(),
-  process: z.string().optional(),
-  tag: z.string().optional(),
-  documented: z.string().optional(),
-  shared: z.string().optional(),
-  lifecycle: z.string().optional(),
-  showArchived: z.string().optional(),
-  server: z.string().optional(),
-  sort: z.string().optional(),
-  // Bounded & finite: ?page=0 / ?limit=Infinity used to reach Prisma/Postgres
-  // as-is and produced HTTP 500
-  page: z.coerce.number().int().min(1).max(100_000).default(1),
-  limit: z.coerce.number().int().min(1).max(1000).default(50)
+  status: z.preprocess(emptyToUndefined, z.string().optional()),
+  layer: z.preprocess(emptyToUndefined, z.string().optional()),
+  protocol: z.preprocess(emptyToUndefined, z.string().optional()),
+  bind: z.preprocess(emptyToUndefined, z.enum(['public', 'local']).optional()),
+  hasIssues: z.preprocess(emptyToUndefined, z.string().optional()),
+  issuePriority: z.preprocess(emptyToUndefined, z.string().optional()),
+  portMin: z.preprocess(emptyToUndefined, z.coerce.number().optional()),
+  portMax: z.preprocess(emptyToUndefined, z.coerce.number().optional()),
+  q: z.preprocess(emptyToUndefined, z.string().optional()),
+  process: z.preprocess(emptyToUndefined, z.string().optional()),
+  tag: z.preprocess(emptyToUndefined, z.string().optional()),
+  documented: z.preprocess(emptyToUndefined, z.string().optional()),
+  shared: z.preprocess(emptyToUndefined, z.string().optional()),
+  lifecycle: z.preprocess(emptyToUndefined, z.string().optional()),
+  showArchived: z.preprocess(emptyToUndefined, z.string().optional()),
+  server: z.preprocess(emptyToUndefined, z.string().optional()),
+  sort: z.preprocess(emptyToUndefined, z.string().optional()),
+  page: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(100_000).default(1)),
+  limit: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(1000).default(50))
 });
 
 export async function portsRoutes(fastify: FastifyInstance, opts: { scanner: ScannerService }) {
