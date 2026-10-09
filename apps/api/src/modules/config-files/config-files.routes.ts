@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+  import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import prisma from '../../db/prisma.js';
 
 export async function configFilesRoutes(fastify: FastifyInstance) {
@@ -31,13 +31,15 @@ export async function configFilesRoutes(fastify: FastifyInstance) {
 
     const activeCount = files.filter(f => f.status === 'active').length;
     const backupCount = files.filter(f => f.status === 'backup').length;
+    const archivedCount = files.filter(f => f.status === 'archived').length;
 
     return reply.send({
       files,
       stats: {
         total: files.length,
         activeCount,
-        backupCount
+        backupCount,
+        archivedCount
       }
     });
   });
@@ -113,24 +115,113 @@ export async function configFilesRoutes(fastify: FastifyInstance) {
     return reply.send(updated);
   });
 
-  // DELETE /api/config-files/:id
-  fastify.delete('/config-files/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  // POST /api/config-files/:id/archive — mark config file as archived (delete later)
+  fastify.post<{ Params: { id: string } }>('/config-files/:id/archive', async (request, reply) => {
     const { id } = request.params;
     const existing = await prisma.configFile.findUnique({ where: { id } });
     if (!existing) return reply.status(404).send({ error: 'Config file not found' });
 
-    await prisma.configFile.delete({ where: { id } });
+    const updated = await prisma.configFile.update({
+      where: { id },
+      data: { status: 'archived' }
+    });
 
     await prisma.auditLog.create({
       data: {
         username: (request as any).user?.username || 'admin',
-        action: 'delete',
+        action: 'archive',
         entity: 'config_file',
         entityId: id,
-        beforeState: existing
+        beforeState: existing,
+        afterState: updated
       }
     });
 
-    return reply.send({ success: true });
+    return reply.send(updated);
   });
+
+  // POST /api/config-files/:id/restore — restore an archived config file back to active
+  fastify.post<{ Params: { id: string } }>('/config-files/:id/restore', async (request, reply) => {
+    const { id } = request.params;
+    const existing = await prisma.configFile.findUnique({ where: { id } });
+    if (!existing) return reply.status(404).send({ error: 'Config file not found' });
+
+    const updated = await prisma.configFile.update({
+      where: { id },
+      data: { status: 'active' }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        username: (request as any).user?.username || 'admin',
+        action: 'restore',
+        entity: 'config_file',
+        entityId: id,
+        beforeState: existing,
+        afterState: updated
+      }
+    });
+
+    return reply.send(updated);
+  });
+
+  // DELETE /api/config-files/:id — delete permanently or archive
+  fastify.delete<{ Params: { id: string }; Querystring: { permanent?: string } }>(
+    '/config-files/:id',
+    async (request, reply) => {
+      const { id } = request.params;
+      const isPermanent = request.query.permanent === 'true';
+      const currentUser = (request as any).user?.username || 'admin';
+
+      const existing = await prisma.configFile.findUnique({ where: { id } });
+      if (!existing) return reply.status(404).send({ error: 'Config file not found' });
+
+      if (isPermanent) {
+        // 1. Create a TrashSnapshot for permanent delete
+        await prisma.trashSnapshot.create({
+          data: {
+            entityType: 'config_file',
+            entityId: id,
+            entityName: existing.filename,
+            data: existing as any,
+            deletedBy: currentUser
+          }
+        });
+
+        // 2. Delete from database
+        await prisma.configFile.delete({ where: { id } });
+
+        await prisma.auditLog.create({
+          data: {
+            username: currentUser,
+            action: 'delete_permanent',
+            entity: 'config_file',
+            entityId: id,
+            beforeState: existing
+          }
+        });
+
+        return reply.send({ success: true, action: 'deleted' });
+      } else {
+        // Soft delete / archive (delete later)
+        const updated = await prisma.configFile.update({
+          where: { id },
+          data: { status: 'archived' }
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            username: currentUser,
+            action: 'archive',
+            entity: 'config_file',
+            entityId: id,
+            beforeState: existing,
+            afterState: updated
+          }
+        });
+
+        return reply.send({ success: true, action: 'archived', file: updated });
+      }
+    }
+  );
 }

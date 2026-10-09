@@ -14,13 +14,17 @@ import {
   Layers,
   ChevronRight,
   AlertTriangle,
-  ClipboardPaste
+  ClipboardPaste,
+  Trash2,
+  Archive,
+  RotateCcw
 } from 'lucide-react';
 import { apiRequest } from '../../lib/api';
 import { parseNginx, tokenizeNginxLine, TOKEN_CLASS, NginxBlock } from '../../lib/nginx';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { ActionBadge } from '../../components/ui/Badge';
 import { ConfigFile } from '../../types';
 
@@ -69,6 +73,38 @@ export function ConfigFileDetailPage() {
       notify('Configuration saved');
       setIsEditorOpen(false);
       setSelectedBlock(null);
+    }
+  });
+
+  const [confirmModal, setConfirmModal] = useState<'archive' | 'delete' | null>(null);
+
+  const archiveMutation = useMutation({
+    mutationFn: () => apiRequest(`/config-files/${id}/archive`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config-file', id] });
+      queryClient.invalidateQueries({ queryKey: ['config-files'] });
+      notify('Config file archived (marked for delete later)');
+      setConfirmModal(null);
+    }
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: () => apiRequest(`/config-files/${id}/restore`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config-file', id] });
+      queryClient.invalidateQueries({ queryKey: ['config-files'] });
+      notify('Config file restored to active');
+      setConfirmModal(null);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => apiRequest(`/config-files/${id}?permanent=true`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config-files'] });
+      queryClient.invalidateQueries({ queryKey: ['trash-overview'] });
+      notify('Config file permanently deleted (snapshot saved to Trash)');
+      navigate('/config-files');
     }
   });
 
@@ -130,6 +166,7 @@ export function ConfigFileDetailPage() {
   }
 
   const isBackup = file.status === 'backup';
+  const isArchived = file.status === 'archived';
   const servers = parse?.blocks.filter((b) => b.type === 'server') || [];
   const upstreams = parse?.blocks.filter((b) => b.type === 'upstream') || [];
   const maps = parse?.blocks.filter((b) => b.type === 'map') || [];
@@ -169,16 +206,22 @@ export function ConfigFileDetailPage() {
             <span>Back to Config Files</span>
           </button>
           <h1 className="text-xl font-bold tracking-tight text-text flex items-center gap-2.5 flex-wrap">
-            <FileCode className={`w-5 h-5 ${isBackup ? 'text-status-slow' : 'text-primary'}`} />
+            <FileCode
+              className={`w-5 h-5 ${
+                isArchived ? 'text-text-muted' : isBackup ? 'text-status-slow' : 'text-primary'
+              }`}
+            />
             <span className="font-mono break-all">{file.filename}</span>
             <span
               className={`text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded-full ${
-                isBackup
-                  ? 'bg-status-slow/15 text-status-slow border border-status-slow/30'
-                  : 'bg-status-up/15 text-status-up border border-status-up/30'
+                isArchived
+                  ? 'bg-surface-2 text-text-muted border border-border'
+                  : isBackup
+                    ? 'bg-status-slow/15 text-status-slow border border-status-slow/30'
+                    : 'bg-status-up/15 text-status-up border border-status-up/30'
               }`}
             >
-              {isBackup ? 'Backup (Not Loaded)' : 'Active (Loaded)'}
+              {isArchived ? 'Archived (Delete Later)' : isBackup ? 'Backup (Not Loaded)' : 'Active (Loaded)'}
             </span>
           </h1>
           <p className="text-xs text-text-muted mt-1">{file.description || 'Virtual host configuration'}</p>
@@ -196,7 +239,7 @@ export function ConfigFileDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           {content && (
             <>
               <Button variant="secondary" size="sm" className="text-xs flex items-center gap-1.5" onClick={handleCopyAll}>
@@ -210,13 +253,72 @@ export function ConfigFileDetailPage() {
             </>
           )}
           {!isViewer && (
-            <Button variant="primary" size="sm" className="text-xs flex items-center gap-1.5" onClick={openEditor}>
-              <Pencil className="w-3.5 h-3.5" />
-              <span>{content ? 'Edit Config' : 'Paste Config'}</span>
-            </Button>
+            <>
+              <Button variant="primary" size="sm" className="text-xs flex items-center gap-1.5" onClick={openEditor}>
+                <Pencil className="w-3.5 h-3.5" />
+                <span>{content ? 'Edit Config' : 'Paste Config'}</span>
+              </Button>
+              <DropdownMenu
+                title="Config file options"
+                items={
+                  isArchived
+                    ? [
+                        {
+                          label: 'Restore to Active',
+                          icon: <RotateCcw className="w-3.5 h-3.5" />,
+                          onClick: () => restoreMutation.mutate()
+                        },
+                        {
+                          label: 'Delete Permanently',
+                          icon: <Trash2 className="w-3.5 h-3.5" />,
+                          variant: 'danger',
+                          onClick: () => setConfirmModal('delete')
+                        }
+                      ]
+                    : [
+                        {
+                          label: 'Archive (Delete Later)',
+                          icon: <Archive className="w-3.5 h-3.5 text-status-slow" />,
+                          onClick: () => setConfirmModal('archive')
+                        },
+                        {
+                          label: 'Delete Permanently',
+                          icon: <Trash2 className="w-3.5 h-3.5" />,
+                          variant: 'danger',
+                          onClick: () => setConfirmModal('delete')
+                        }
+                      ]
+                }
+              />
+            </>
           )}
         </div>
       </div>
+
+      {/* Archived banner */}
+      {isArchived && (
+        <div className="p-4 rounded-xl border border-border bg-surface-2/40 flex items-center justify-between gap-4 text-xs">
+          <div className="flex items-center gap-2.5">
+            <Archive className="w-5 h-5 text-status-slow shrink-0" />
+            <div>
+              <span className="font-bold text-text">This config file is archived (marked for delete later)</span>
+              <p className="text-text-muted">It is currently unloaded and inactive. You can restore it to active anytime or delete it permanently.</p>
+            </div>
+          </div>
+          {!isViewer && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="text-xs flex items-center gap-1.5 shrink-0"
+              onClick={() => restoreMutation.mutate()}
+              isLoading={restoreMutation.isPending}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Restore to Active</span>
+            </Button>
+          )}
+        </div>
+      )}
 
       {parse && parse.errors.length > 0 && (
         <div className="p-3 rounded-lg border border-status-slow/30 bg-status-slow/10 text-xs text-status-slow flex items-start gap-2" data-testid="parse-warnings">
@@ -431,6 +533,85 @@ export function ConfigFileDetailPage() {
               </Button>
             </div>
           </div>
+        </div>
+      </Modal>
+
+      {/* Confirmation Modal */}
+      <Modal
+        isOpen={!!confirmModal}
+        onClose={() => setConfirmModal(null)}
+        title={
+          confirmModal === 'archive'
+            ? 'Archive Config File (Delete Later)'
+            : 'Permanently Delete Config File'
+        }
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setConfirmModal(null)}>
+              Cancel
+            </Button>
+            {confirmModal === 'archive' ? (
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={archiveMutation.isPending}
+                onClick={() => archiveMutation.mutate()}
+              >
+                Archive (Delete Later)
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                {!isArchived && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={archiveMutation.isPending}
+                    onClick={() => archiveMutation.mutate()}
+                  >
+                    Archive Instead
+                  </Button>
+                )}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  isLoading={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  Delete Permanently
+                </Button>
+              </div>
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-4 text-xs text-text">
+          <div
+            className={`p-3 rounded-lg border ${
+              confirmModal === 'delete'
+                ? 'bg-status-down/10 border-status-down/30 text-status-down'
+                : 'bg-status-slow/10 border-status-slow/30 text-status-slow'
+            }`}
+          >
+            <div className="flex items-center gap-2 font-semibold mb-1">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>
+                {confirmModal === 'delete'
+                  ? 'Permanently delete this configuration file?'
+                  : 'Move configuration file to Archive?'}
+              </span>
+            </div>
+            <p className="text-text font-mono font-medium">Filename: {file.filename}</p>
+          </div>
+
+          {confirmModal === 'delete' ? (
+            <p className="text-text-muted leading-relaxed">
+              This will remove <code className="font-mono text-text">{file.filename}</code> from PortWatch. A snapshot will be saved to Trash so you can restore it if necessary. Attached routes will be safely unlinked.
+            </p>
+          ) : (
+            <p className="text-text-muted leading-relaxed">
+              Archiving marks this file as <span className="font-semibold text-text">Archived (Delete Later)</span>. It will be excluded from active virtual host audits while keeping your configuration text safe. You can restore it anytime.
+            </p>
+          )}
         </div>
       </Modal>
     </div>

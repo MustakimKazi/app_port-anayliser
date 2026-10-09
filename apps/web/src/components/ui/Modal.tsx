@@ -6,6 +6,7 @@ interface ModalProps {
   onClose: () => void;
   title: React.ReactNode;
   children: React.ReactNode;
+  footer?: React.ReactNode;
   maxWidth?: string;
 }
 
@@ -14,6 +15,7 @@ export function Modal({
   onClose,
   title,
   children,
+  footer,
   maxWidth = "max-w-lg",
 }: ModalProps) {
   useEffect(() => {
@@ -46,6 +48,11 @@ export function Modal({
           </button>
         </div>
         <div className="p-6">{children}</div>
+        {footer && (
+          <div className="px-6 py-4 border-t border-border bg-surface-2/40">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

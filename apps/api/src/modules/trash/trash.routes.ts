@@ -13,7 +13,7 @@ export function checkAdminRole(request: FastifyRequest, reply: FastifyReply): bo
 export async function trashRoutes(fastify: FastifyInstance) {
   // GET /api/trash - Overview of all archived items across entities
   fastify.get('/trash', async (request: FastifyRequest, reply: FastifyReply) => {
-    const [archivedPorts, archivedRoutes, archivedBackends, archivedServers, snapshots] = await Promise.all([
+    const [archivedPorts, archivedRoutes, archivedBackends, archivedServers, archivedConfigFiles, snapshots] = await Promise.all([
       prisma.port.findMany({
         where: { archivedAt: { not: null } },
         orderBy: { archivedAt: 'desc' }
@@ -31,6 +31,10 @@ export async function trashRoutes(fastify: FastifyInstance) {
         where: { archivedAt: { not: null } },
         orderBy: { archivedAt: 'desc' }
       }),
+      prisma.configFile.findMany({
+        where: { status: 'archived' },
+        orderBy: { updatedAt: 'desc' }
+      }),
       prisma.trashSnapshot.findMany({
         orderBy: { createdAt: 'desc' },
         take: 50
@@ -42,12 +46,14 @@ export async function trashRoutes(fastify: FastifyInstance) {
       routes: archivedRoutes,
       backends: archivedBackends,
       servers: archivedServers,
+      configFiles: archivedConfigFiles,
       snapshots,
       totalArchived:
         archivedPorts.length +
         archivedRoutes.length +
         archivedBackends.length +
-        archivedServers.length
+        archivedServers.length +
+        archivedConfigFiles.length
     });
   });
 
@@ -147,6 +153,53 @@ export async function trashRoutes(fastify: FastifyInstance) {
       });
 
       return reply.send({ success: true, restored });
+    } else if (snapshot.entityType === 'config_file') {
+      const fileData = data.file || data;
+      const restored = await prisma.configFile.upsert({
+        where: { filename: fileData.filename },
+        update: {
+          status: 'active',
+          description: fileData.description || null,
+          content: fileData.content || null
+        },
+        create: {
+          filename: fileData.filename,
+          status: 'active',
+          description: fileData.description || null,
+          content: fileData.content || null
+        }
+      });
+
+      await prisma.trashSnapshot.delete({ where: { id } });
+
+      await prisma.auditLog.create({
+        data: {
+          username,
+          action: 'restore_snapshot',
+          entity: 'config_file',
+          entityId: restored.id,
+          afterState: restored
+        }
+      });
+
+      return reply.send({ success: true, restored });
+    } else if (snapshot.entityType === 'certificate') {
+      const domain = snapshot.entityId;
+      await prisma.registryFeatureSetting.deleteMany({
+        where: { key: `excluded_cert:${domain.toLowerCase()}` }
+      });
+      await prisma.trashSnapshot.delete({ where: { id } });
+
+      await prisma.auditLog.create({
+        data: {
+          username,
+          action: 'restore_snapshot',
+          entity: 'certificate',
+          entityId: domain
+        }
+      });
+
+      return reply.send({ success: true, restored: { domain } });
     }
 
     return reply.status(400).send({ error: `Unsupported entity type: ${snapshot.entityType}` });

@@ -11,13 +11,14 @@ interface TrashModalProps {
 
 export function TrashModal({ isOpen, onClose }: TrashModalProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'ports' | 'routes' | 'backends' | 'servers' | 'snapshots'>('ports');
+  const [activeTab, setActiveTab] = useState<'ports' | 'routes' | 'backends' | 'servers' | 'configFiles' | 'snapshots'>('ports');
 
   const { data: trash, isLoading } = useQuery<{
     ports: any[];
     routes: any[];
     backends: any[];
     servers: any[];
+    configFiles: any[];
     snapshots: any[];
     totalArchived: number;
   }>({
@@ -71,6 +72,17 @@ export function TrashModal({ isOpen, onClose }: TrashModalProps) {
     }
   });
 
+  // Restore config file mutation
+  const restoreConfigFileMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/config-files/${id}/restore`, { method: 'POST' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trash'] });
+      queryClient.invalidateQueries({ queryKey: ['config-files'] });
+    }
+  });
+
   // Restore snapshot mutation
   const restoreSnapshotMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -80,6 +92,9 @@ export function TrashModal({ isOpen, onClose }: TrashModalProps) {
       queryClient.invalidateQueries({ queryKey: ['trash'] });
       queryClient.invalidateQueries({ queryKey: ['ports'] });
       queryClient.invalidateQueries({ queryKey: ['routes'] });
+      queryClient.invalidateQueries({ queryKey: ['config-files'] });
+      queryClient.invalidateQueries({ queryKey: ['certificates'] });
+      queryClient.invalidateQueries({ queryKey: ['certificates-excluded'] });
     }
   });
 
@@ -89,6 +104,7 @@ export function TrashModal({ isOpen, onClose }: TrashModalProps) {
   const routes = trash?.routes || [];
   const backends = trash?.backends || [];
   const servers = trash?.servers || [];
+  const configFiles = trash?.configFiles || [];
   const snapshots = trash?.snapshots || [];
 
   return (
@@ -127,6 +143,7 @@ export function TrashModal({ isOpen, onClose }: TrashModalProps) {
             { id: 'routes', label: `Routes (${routes.length})` },
             { id: 'backends', label: `Backends (${backends.length})` },
             { id: 'servers', label: `Servers (${servers.length})` },
+            { id: 'configFiles', label: `Config Files (${configFiles.length})` },
             { id: 'snapshots', label: `Deleted Snapshots (${snapshots.length})` }
           ].map((t) => (
             <button
@@ -261,6 +278,35 @@ export function TrashModal({ isOpen, onClose }: TrashModalProps) {
                     >
                       <RotateCcw className="w-3.5 h-3.5 mr-1" />
                       Restore Server
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : activeTab === 'configFiles' ? (
+            configFiles.length === 0 ? (
+              <div className="text-center py-12 text-xs text-text-muted">No archived config files.</div>
+            ) : (
+              <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
+                {configFiles.map((c) => (
+                  <div key={c.id} className="p-3 bg-surface hover:bg-surface-2/50 flex items-center justify-between transition-colors">
+                    <div>
+                      <div className="text-xs font-mono font-bold text-text">
+                        {c.filename}
+                      </div>
+                      <div className="text-[11px] text-text-muted mt-0.5">
+                        {c.description || 'Virtual host configuration'} • Archived {new Date(c.updatedAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => restoreConfigFileMutation.mutate(c.id)}
+                      isLoading={restoreConfigFileMutation.isPending}
+                      className="text-xs"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                      Restore Config
                     </Button>
                   </div>
                 ))}

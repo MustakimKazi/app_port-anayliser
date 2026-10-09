@@ -72,6 +72,12 @@ export class ScannerService {
     return this.cachedCerts;
   }
 
+  removeCachedCertificate(domain: string, port?: number) {
+    this.cachedCerts = this.cachedCerts.filter(
+      (c) => !(c.domain.toLowerCase() === domain.toLowerCase() && (port === undefined || c.port === port))
+    );
+  }
+
   /**
    * Run a full scan across host listeners, ports, backends, routes, and certs.
    * Respects port lifecycles (planned, reserved, maintenance, deprecated, archived)
@@ -329,19 +335,35 @@ export class ScannerService {
 
       // Step 4: Check TLS certificates for HTTPS domains
       sseManager.broadcast('scan_progress', { stage: 'checking_certificates', progress: 80 });
-      const httpsRoutes = await this.prisma.route.findMany({
-        where: {
-          protocol: 'HTTPS',
-          archivedAt: null,
-          domain: { not: '(catch-all)' }
-        },
-        distinct: ['domain']
-      });
+      const [httpsRoutes, excludedCerts] = await Promise.all([
+        this.prisma.route.findMany({
+          where: {
+            protocol: 'HTTPS',
+            archivedAt: null,
+            domain: { not: '(catch-all)' }
+          },
+          distinct: ['domain']
+        }),
+        this.prisma.registryFeatureSetting.findMany({
+          where: {
+            key: { startsWith: 'excluded_cert:' },
+            globallyEnabled: false
+          }
+        })
+      ]);
+
+      const excludedDomainSet = new Set(
+        excludedCerts.map((ec) => ec.key.replace('excluded_cert:', '').toLowerCase())
+      );
+
+      const activeRoutes = httpsRoutes.filter(
+        (r) => !excludedDomainSet.has(r.domain.toLowerCase())
+      );
 
       const certResults: CertificateInfo[] = [];
       const certLimit = pLimit(10);
       await Promise.all(
-        httpsRoutes.slice(0, 20).map((r) =>
+        activeRoutes.slice(0, 20).map((r) =>
           certLimit(async () => {
             try {
               const cert = await certChecker.check(r.domain, r.portNum || 443, 3000);

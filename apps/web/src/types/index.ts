@@ -162,7 +162,7 @@ export interface Server {
 export interface ConfigFile {
   id: string;
   filename: string;
-  status: 'active' | 'backup';
+  status: 'active' | 'backup' | 'archived';
   description: string | null;
   content?: string | null;
   hasContent?: boolean;
