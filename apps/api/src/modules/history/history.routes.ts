@@ -31,7 +31,7 @@ export async function historyRoutes(fastify: FastifyInstance) {
           const next = events[j];
           if (next.targetId === e.targetId && (next.toStatus === 'up' || next.toStatus === 'slow')) {
             resolvedAt = next.at;
-            durationMinutes = Math.round((new Date(resolvedAt).getTime() - new Date(e.at).getTime()) / 60000);
+            durationMinutes = Math.round((new Date(next.at).getTime() - new Date(e.at).getTime()) / 60000);
             break;
           }
         }
